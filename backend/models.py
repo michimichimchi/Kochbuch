@@ -11,6 +11,14 @@ class User(Base):
     email = Column(String(200), unique=True, nullable=False)
     hashed_password = Column(String(200), nullable=False)
 
+class Recipe(Base):
+    __tablename__ = "recipes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), index=True, nullable=False)
+    ingredients = Column(Text, nullable=False)
+    instructions = Column(Text, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
 # TODO: Fügt hier eure eigenen Modelle hinzu
 # class Item(Base):
