@@ -31,7 +31,14 @@ export async function login(username: string, password: string): Promise<void> {
 	// Hinweis: URLSearchParams für Form-Daten verwenden
 	//          Content-Type: 'application/x-www-form-urlencoded'
 	//          Bei Erfolg: saveToken(data.access_token) aufrufen
-	throw new Error('TODO: login() implementieren');
+	const res = await fetch(`${API_BASE}/token`, {                           // URL des Token-Endpunkts, z.B. http://localhost:8000/token
+		method: "POST",                                                      // HTTP-Methode POST
+		headers: { "Content-Type": "application/x-www-form-urlencoded" },    // Header für Form-Daten
+		body: new URLSearchParams({ username, password})                     // Form-Daten mit username und password
+	});
+	if (!res.ok) throw new Error("Benutzername oder Passwort falsch");       // Fehlerbehandlung bei ungültigen Anmeldedaten, !res prüft, ob die Antwort keinen erfolgreichen Statuscode hat
+	const data = await res.json();                                           // Antwort als JSON parsen, erwartet wird ein Objekt mit einem access_token-Feld
+	saveToken(data.access_token);                                            // Funktion saveToken aufrufen, die Token im localStorage speichert, damit er für zukünftige Anfragen verwendet werden kann
 }
 
 /**
@@ -42,15 +49,27 @@ export async function fetchProtected<T>(path: string): Promise<T> {
 	// TODO: Implementiert diese Funktion
 	// Hinweis: getToken() für den Token, Authorization: `Bearer ${token}` als Header
 	//          Bei 401: logout() aufrufen und Fehler werfen
-	throw new Error('TODO: fetchProtected() implementieren');
+	const token = getToken();                                            // Token aus localStorage holen, ist entweder ein String oder null, wenn kein Token gespeichert ist
+	if (!token) throw new Error("Nicht eingeloggt");                     // Fehler werfen, wenn kein Token vorhanden ist, da die Anfrage sonst nicht autorisiert wäre
+	const res = await fetch(`${API_BASE}${path}`, { 				     // URL für die geschützte Ressource, z.B. http://localhost:8000/protected-data
+		headers: { Authorization: `Bearer ${token}` }                    // Authorization-Header mit Bearer-Token, damit das Backend die Anfrage als authentifiziert erkennt
+	});
+	if (res.status === 401) {                                            // Wenn die Antwort Statuscode 401 Unauthorized hat, ist Token ungültig oder abgelaufen. Token wird gelöscht, Nutzer ausgeloogt und Fehler geworfen, damit er sich erneut anmelden muss.
+		logout();
+		throw new Error("Nicht autorisiert");
+	}
+	if (!res.ok) throw new Error("Fehler beim Abrufen der geschützten Daten");   // Fehlerbehandlung für andere Fehlercodes, z.B. 500 Serverfehler
+	return res.json();                                                           // Antwort als JSON parsen und zurückgeben, erwartet wird die geschützte Ressource, z.B. ein Array von Daten oder ein Objekt mit Informationen, abhängig von der angeforderten Route
 }
 
 /**
  * Führt einen nicht authentifizierten GET-Request aus.
  */
-export async function fetchPublic<T>(path: string): Promise<T> {
+export async function fetchPublic<T>(path: string): Promise<T> {      // Hier wird ein öffentlicher GET-Request durchgeführt, man muss nicht angemeldet sein -> ist somit für öffentliche Ressourcen
 	// TODO: Implementiert diese Funktion
-	throw new Error('TODO: fetchPublic() implementieren');
+	const res = await fetch(`${API_BASE}${path}`);
+	if (!res.ok) throw new Error("Fehler beim Abrufen der öffentlichen Daten");  // Fehlerbehandlung für ungültige Antworten / Fehler die auftreten wie z.B. 404 Not Found oder 500 Serverfehler
+	return res.json();                 // Antwort als JSON parsen und zurückgeben, erwartet wird die öffentliche Ressource, z.B. eine Liste von Artikeln oder allgemeine Informationen, abhängig von der angeforderten Route
 }
 
 // TODO: Ergänzt hier eigene API-Funktionen, z. B.:
@@ -71,3 +90,16 @@ export async function fetchPublic<T>(path: string): Promise<T> {
 //   if (!res.ok) throw new Error('Erstellen fehlgeschlagen');
 //   return res.json();
 // }
+
+
+// Hier wird die Registrierung eines neuen Benutzers durchgeführt, es werden die erforderlichen Daten (username, email, password) als JSON an den /register-Endpunkt gesendet
+export async function register(username: string, email: string, password: string): Promise<void> {   
+	const res = await fetch(`${API_BASE}/auth/register`, {              // URL des Registrierungs-Endpunkts, z.B. http://localhost:8000/register
+		method: "POST",                                            // HTTP-Methode Post, da an Server gesendet wird
+		headers: { "Content-Type": "application/json" },           // Header für JSON-Daten, damit das Backend die Daten als JSON interpretieren kann
+		body: JSON.stringify({ username, email, password })        // JSON-String aus den übergebenen Parametern erstellen, damit sie im Request-Body gesendet werden können, erwartet wird ein Objekt mit den Feldern username, email und password
+	});
+	if (!res.ok) throw new Error("Benutzername oder E-Mail bereits vergeben");        // Fehlerbehandlung, wenn die Registrierung nicht erfolgreich war, z.B. weil der Benutzername oder die E-Mail bereits existiert, !res prüft, ob die Antwort keinen erfolgreichen Statuscode hat
+	const data = await res.json();          // Antwort als JSON parsen, erwartet wird ein Objekt mit einem access_token-Feld, das den JWT enthält, damit der Nutzer nach der Registrierung automatisch eingeloggt wird
+	saveToken(data.access_token);           // Funktion saveToken aufrufen, um Token im localStorage zu speichern
+}

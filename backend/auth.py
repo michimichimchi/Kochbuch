@@ -26,21 +26,25 @@ def get_password_hash(plain_password: str) -> str:
     """Erzeugt einen Argon2-Hash inkl. automatisch eingebettetem Salt."""
     # TODO: Implementiert diese Funktion
     # Hinweis: password_hash.hash(...)
-    raise NotImplementedError
-
+    return password_hash.hash(plain_password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Vergleicht ein Klartext-Passwort mit einem gespeicherten Hash."""
     # TODO: Implementiert diese Funktion
     # Hinweis: password_hash.verify(...)
-    raise NotImplementedError
+    # Achtung: Diese Funktion wirft eine Exception, wenn der Hash ungültig ist 
+    return password_hash.verify(plain_password, hashed_password)
 
 
 def create_access_token(username: str) -> str:
     """Erzeugt einen signierten JWT mit Ablaufzeit."""
     # TODO: Implementiert diese Funktion
     # Hinweis: jwt.encode({"sub": ..., "exp": ...}, SECRET_KEY, algorithm=ALGORITHM)
-    raise NotImplementedError
+    return jwt.encode(
+        {"sub": username, "exp": datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)},
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
 
 
 async def get_current_user(
@@ -58,4 +62,11 @@ async def get_current_user(
     # TODO: Implementiert diese Funktion
     # Hinweis: jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     #          payload.get("sub") liefert den Benutzernamen
-    raise credentials_exception
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM]) # Prüft Signatur und Ablaufzeit
+        username = payload.get("sub") # "sub" ist der Standard-Claim für den Benutzername/ID
+        if username is None:
+            raise credentials_exception # Fehlender "sub"-Claim -> ungültiger Token
+        return username
+    except InvalidTokenError:           # Bei ungültigem Token (falsche Signatur, ungültiges Format, etc.)
+        raise credentials_exception     # Ungültiger oder abgelaufener Token -> HTTP 401
