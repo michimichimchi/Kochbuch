@@ -94,12 +94,10 @@ export async function fetchPublic<T>(path: string): Promise<T> {      // Hier wi
 
 // Hier wird die Registrierung eines neuen Benutzers durchgeführt, es werden die erforderlichen Daten (username, email, password) als JSON an den /register-Endpunkt gesendet
 export async function register(username: string, email: string, password: string): Promise<void> {   
-	const res = await fetch(`${API_BASE}/auth/register`, {              // URL des Registrierungs-Endpunkts, z.B. http://localhost:8000/register
+	const res = await fetch(`${API_BASE}/auth/register`, {              // URL des Registrierungs-Endpunkts, z.B. http://localhost:8000/auth/register
 		method: "POST",                                            // HTTP-Methode Post, da an Server gesendet wird
 		headers: { "Content-Type": "application/json" },           // Header für JSON-Daten, damit das Backend die Daten als JSON interpretieren kann
 		body: JSON.stringify({ username, email, password })        // JSON-String aus den übergebenen Parametern erstellen, damit sie im Request-Body gesendet werden können, erwartet wird ein Objekt mit den Feldern username, email und password
 	});
 	if (!res.ok) throw new Error("Benutzername oder E-Mail bereits vergeben");        // Fehlerbehandlung, wenn die Registrierung nicht erfolgreich war, z.B. weil der Benutzername oder die E-Mail bereits existiert, !res prüft, ob die Antwort keinen erfolgreichen Statuscode hat
-	const data = await res.json();          // Antwort als JSON parsen, erwartet wird ein Objekt mit einem access_token-Feld, das den JWT enthält, damit der Nutzer nach der Registrierung automatisch eingeloggt wird
-	saveToken(data.access_token);           // Funktion saveToken aufrufen, um Token im localStorage zu speichern
 }
