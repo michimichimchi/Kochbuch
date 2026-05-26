@@ -262,11 +262,18 @@
 		font-size: 1.1rem;
 	}
 	.auth-section {
+		position: fixed;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 1000;
+		
+		/* Optische Anpassungen */
 		max-width: 400px;
-		margin: 2rem auto;
+		width: 90%;
 		background: #fff;
 		border-radius: 12px;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+		box-shadow: 0 8px 32px rgba(0,0,0,0.2);
 		padding: 2rem 2.5rem;
 	}
 	.auth-section input {
