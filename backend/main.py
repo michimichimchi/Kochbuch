@@ -23,6 +23,14 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Mein Projekt", version="0.1.0")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Erlaubt Anfragen von diesem Ursprung (Frontend-Entwicklungsserver)
+    allow_credentials=True,  # Erlaubt das Senden von Cookies und Authentifizierungsinformationen
+    allow_methods=["*"],  # Erlaubt alle HTTP-Methoden (GET, POST, etc.)
+    allow_headers=["*"],  # Erlaubt alle Header (z.B. Authorization für Bearer-Token)
+)
+
 # ---------------------------------------------------------------------------
 # Health Check
 # ---------------------------------------------------------------------------
@@ -43,7 +51,16 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
     # 1. Prüft, ob username oder email bereits existieren (→ 400)
     # 2. Passwort hashen mit get_password_hash()
     # 3. User-Objekt anlegen, in DB speichern, zurückgeben
-    raise HTTPException(status_code=501, detail="Noch nicht implementiert")
+    if db.query(User).filter(User.username == data.username).first() is not None: # Prüft, ob der zu erstellende Benutzername schon in der DB existiert
+        raise HTTPException(status_code=400, detail="Username bereits vergeben")  # Wenn ja, code 400 asugeben und Fehlermeldung "Username bereits vergeben"
+    if db.query(User).filter(User.email == data.email).first() is not None:       # gleiches Spiel für email
+        raise HTTPException(status_code=400, detail="Email bereits vergeben")
+    hashed_password = get_password_hash(data.password)                            # Funktion get_password_hash() aus auth.py aufrufen, um einen sicheren Hash des Passworts zu erzeugen  
+    user = User(username=data.username, email=data.email, hashed_password=hashed_password)  # user Objekt mit den übergebenen Daten und dem erzeugten Hash anlegen
+    db.add(user)       # User-Objekt zur DB-Session hinzufügen
+    db.commit()        # Änderungen in der DB speichern (INSERT ausführen)
+    db.refresh(user)   # Aktualisiert das user-Objekt mit den Daten aus der DB (z.B. automatisch generierte ID)
+    return user        # User-Objekt zurückgeben (wird automatisch in UserResponse umgewandelt)
 
 
 @app.post("/token", response_model=Token)
@@ -60,10 +77,16 @@ def login(
     # 2. Passwort mit verify_password() prüfen (Timing-Schutz: DUMMY_HASH nutzen)
     # 3. Bei Fehler: 401 zurückgeben (generische Meldung!)
     # 4. JWT mit create_access_token() erzeugen und zurückgeben
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Noch nicht implementiert",
-    )
+    user = db.query(User).filter(User.username == form_data.username).first()
+    if user is None:
+        verify_password(form_data.password, DUMMY_HASH) # Timing-Angriff-Schutz: Auch bei unbekanntem Benutzer wird ein Hash-Vergleich durchgeführt. Dann weiß Angreifer nicht,  ob Benutzer existiert oder nicht (sonst wäre die Reaktionszeit bei unbekanntem Benutzer deutlich kürzer, da kein Hash-Vergleich stattfindet)
+        raise HTTPException(status_code=401, detail="Ungültige Anmeldedaten")
+
+    if verify_password(form_data.password, user.hashed_password) is False:
+        raise HTTPException(status_code=401, detail="Ungültige Anmeldedaten")
+
+    access_token = create_access_token(user.username)
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 @app.get("/my-profile", response_model=UserResponse)
@@ -74,7 +97,10 @@ def get_profile(
     """Gibt das Profil des eingeloggten Benutzers zurück (geschützter Endpoint)."""
     # TODO: Implementiert diese Funktion
     # Hinweis: current_username kommt bereits validiert aus dem JWT (via Depends)
-    raise HTTPException(status_code=501, detail="Noch nicht implementiert")
+    user = db.query(User).filter(User.username == current_username).first()
+    if user is None:
+        raise HTTPException (status_code=404, detail="Benutzer nicht gefunden") # Sollte eigentlich nie passieren, da current_username nur gültige Benutzernamen enthält. Trotzdem gut, das abzufangen.
+    return user
 
 
 # ---------------------------------------------------------------------------
