@@ -4,6 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from typing import List
 
 from auth import (
     DUMMY_HASH,
@@ -13,7 +14,8 @@ from auth import (
     verify_password,
 )
 from database import Base, engine, get_db
-from models import User
+import models
+import schemas
 from schemas import Token, UserRegister, UserResponse
 
 # Tabellen anlegen (falls noch nicht vorhanden)
@@ -78,6 +80,22 @@ def get_profile(
 # ---------------------------------------------------------------------------
 # TODO: Eure eigenen Endpoints hier einfügen
 # ---------------------------------------------------------------------------
+
+@app.get("/recipes", response_model=List[schemas.RecipeResponse])
+def get_recipes(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return db.query(models.Recipe).offset(skip).limit(limit).all()
+
+@app.post("/recipes", response_model=schemas.RecipeResponse)
+def create_recipe(
+    recipe: schemas.RecipeCreate, 
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    new_recipe = models.Recipe(**recipe.model_dump(), user_id=current_user.id)
+    db.add(new_recipe)
+    db.commit()
+    db.refresh(new_recipe)
+    return new_recipe
 
 # Beispiel:
 # @app.get("/items")
