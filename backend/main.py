@@ -4,6 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from typing import List
 from models import User
 
@@ -112,17 +113,96 @@ def get_profile(
 def get_recipes(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return db.query(models.Recipe).offset(skip).limit(limit).all()
 
+@app.get("/recipes/{recipe_id}", response_model=schemas.RecipeResponse)
+def get_recipe(recipe_id: int, db: Session = Depends(get_db)):
+    recipe = db.query(models.Recipe).filter(models.Recipe.id == recipe_id).first()
+
+    if recipe is None:
+        raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+
+    return recipe
+
 @app.post("/recipes", response_model=schemas.RecipeResponse)
 def create_recipe(
-    recipe: schemas.RecipeCreate, 
+    recipe: schemas.RecipeCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_username: str = Depends(get_current_user)
 ):
-    new_recipe = models.Recipe(**recipe.model_dump(), user_id=current_user.id)
-    db.add(new_recipe)
+    user = db.query(models.User).filter(models.User.username == current_username).first()
+
+    if user is None:
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+
+    recipe_data = recipe.model_dump(exclude={"ingredients"})
+    new_recipe = models.Recipe(**recipe_data)
+
+    try:
+        db.add(new_recipe)
+        db.commit()
+        db.refresh(new_recipe)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Rezepttitel existiert bereits")
+
+    recipe_user = models.RecipeUser(
+        recipe_id=new_recipe.id,
+        user_id=user.id,
+        usage="creator"
+    )
+
+    db.add(recipe_user)
+
+    for ingredient in recipe.ingredients:
+        grocery = db.query(models.Grocery).filter(
+            models.Grocery.name == ingredient.name
+        ).first()
+
+        if grocery is None:
+            grocery = models.Grocery(name=ingredient.name)
+            db.add(grocery)
+            db.commit()
+            db.refresh(grocery)
+
+        recipe_grocery = models.RecipeGrocery(
+            recipe_id=new_recipe.id,
+            grocery_id=grocery.id,
+            amount=ingredient.amount,
+            unit=ingredient.unit
+        )
+
+        db.add(recipe_grocery)
+
     db.commit()
     db.refresh(new_recipe)
+
     return new_recipe
+
+@app.get("/evaluations", response_model=List[schemas.EvaluationResponse])
+def get_evaluations(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return db.query(models.Evaluation).offset(skip).limit(limit).all()
+
+
+@app.post("/evaluations", response_model=schemas.EvaluationResponse)
+def create_evaluation(
+    evaluation: schemas.EvaluationCreate,
+    db: Session = Depends(get_db),
+    current_username: str = Depends(get_current_user)
+):
+    user = db.query(models.User).filter(models.User.username == current_username).first()
+
+    if user is None:
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+
+    new_evaluation = models.Evaluation(
+        **evaluation.model_dump(),
+        user_id=user.id
+    )
+
+    db.add(new_evaluation)
+    db.commit()
+    db.refresh(new_evaluation)
+
+    return new_evaluation
 
 # Beispiel:
 # @app.get("/items")

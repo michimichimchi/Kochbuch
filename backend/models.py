@@ -31,13 +31,6 @@ class RecipeGrocery(Base):
     amount = Column(Integer)
     unit = Column(String(50))
 
-class RecipeTool(Base):
-    __tablename__ = "recipe_tool"
-
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    recipe_id = Column(Integer, ForeignKey("recipe.id"), nullable=False)
-    tool_id = Column(Integer, ForeignKey("tool.id"), nullable=False)
-
 class RecipeUser(Base):
     __tablename__ = "recipe_user"
 
@@ -60,15 +53,12 @@ class Grocery(Base):
     name = Column(String(100), unique=True)
     image = Column(String(200))
 
-    durability_score = Column(Integer, CheckConstraint("durability_score >= 1 AND durability_score <= 5"))
-    durability = Column(String(200))
-
-    availability_score = Column(Integer, CheckConstraint("availability_score >= 1 AND availability_score <= 5"))
-    availability = Column(String(200))
-
-class Tool(Base):
-    __tablename__ = "tool"
+class Evaluation(Base):
+    __tablename__ = "evaluation"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    name = Column(String(100), unique=True)
-    description = Column(String(200))
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    recipe_id = Column(Integer, ForeignKey("recipe.id"), nullable=False)
+
+    rating = Column(Integer, CheckConstraint("rating >= 1 AND rating <= 5"))
+    comment = Column(String(500))
