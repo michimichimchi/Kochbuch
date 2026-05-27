@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import List
 from models import User, Recipe, Category
+from sqlalchemy import func
+from typing import List
 
 from auth import (
     DUMMY_HASH,
@@ -152,6 +154,25 @@ def get_profile(
     return user
 
 
+@app.get("/recipes/top", response_model=List[schemas.RecipeResponse])
+def get_top_recipes(limit: int = 3, db: Session = Depends(get_db)):
+    """Holt die Rezepte mit der höchsten Durchschnittsbewertung."""
+    
+    top_recipes = (
+        db.query(models.Recipe)
+        # Verknüpft die Rezepte mit eurer neuen Evaluation-Tabelle
+        .outerjoin(models.Evaluation, models.Recipe.id == models.Evaluation.recipe_id)
+        # Gruppiert alles pro Rezept
+        .group_by(models.Recipe.id)
+        # Berechnet den Durchschnitt aus der Spalte 'rating' und sortiert absteigend
+        .order_by(func.coalesce(func.avg(models.Evaluation.rating), 0).desc())
+        .limit(limit)
+        .all()
+    )
+    
+    return top_recipes
+
+
 # ---------------------------------------------------------------------------
 # TODO: Eure eigenen Endpoints hier einfügen
 # ---------------------------------------------------------------------------
@@ -265,8 +286,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
 
 # Beispiel:
 # @app.get("/items")
