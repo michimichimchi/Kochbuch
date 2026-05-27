@@ -5,21 +5,6 @@
 
     // Zustand, ob der Benutzer eingeloggt ist
     let loggedIn = $state(false);
-
-    // Registrierungsfelder
-    let regUsername = $state("");
-    let regEmail = $state("");
-    let regPassword = $state("");
-
-    // Login-Felder
-    let loginUsername = $state("");
-    let loginPassword = $state("");
-
-    // Gemeinsame Fehlermeldung
-    let errorMsg = $state("");
-
-    // Steuert die Sichtbarkeit des Auth-Formulars
-    let showAuth = $state(false);
 	
 	// Überprüft beim Laden der Seite, ob der Benutzer bereits eingeloggt ist
 	onMount(() => {
@@ -63,7 +48,7 @@
 </script>
 
 {#if !loggedIn}
-    <button class="auth-btn" onclick={() => showAuth = !showAuth}>Anmelden</button>
+    <a href="/login" class="auth-btn">Anmelden</a>
 {/if}
 
 
@@ -126,23 +111,6 @@
         </div>
     </section>
 
-	<!-- Auth-Formular bleibt erhalten, aber weiter unten -->
-	{#if showAuth && !loggedIn}
-		<section class="auth-section">
-			<h2>Registrieren</h2>
-			<input bind:value={regUsername} placeholder="Benutzername" />
-			<input bind:value={regEmail} placeholder="Email" />
-			<input bind:value={regPassword} type="password" placeholder="Passwort" />
-			<button onclick={handleRegister}>Registrieren</button>
-			<h2>Login</h2>
-			<input bind:value={loginUsername} placeholder="Benutzername" />
-			<input bind:value={loginPassword} type="password" placeholder="Passwort" />
-			<button onclick={handleLogin}>Anmelden</button>
-			{#if errorMsg}
-				<p style="color: red">{errorMsg}</p>
-			{/if}
-		</section>
-	{/if}
 </main>
 
 <style>
@@ -278,49 +246,13 @@
 		font-weight: 600;
 		font-size: 1.1rem;
 	}
-	.auth-section {
-		position: fixed;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		z-index: 1000;
-		
-		/* Optische Anpassungen */
-		max-width: 400px;
-		width: 90%;
-		background: #fff;
-		border-radius: 12px;
-		box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-		padding: 2rem 2.5rem;
-	}
-	.auth-section input {
-		display: block;
-		margin: 0.5rem 0;
-		padding: 0.4rem 0.6rem;
-		width: 100%;
-		border-radius: 6px;
-		border: 1px solid #e0d6c3;
-	}
-	.auth-section button {
-		margin: 0.5rem 0.25rem 0.5rem 0;
-		padding: 0.4rem 1rem;
-		cursor: pointer;
-		background: #845b2f;
-		color: #fff;
-		border: none;
-		border-radius: 6px;
-		font-weight: 600;
-		transition: background 0.2s;
-	}
-	.auth-section button:hover {
-		background: #a97c50;
-	}
+
 	/* Aussehen des Anmelde-Buttons oben rechts */
 	.auth-btn {
 		position: fixed;
 		top: 1rem;
 		right: 1rem;
-		background-color: transparent;
+		background-color: #fff;
 		color: rgb(132, 91, 47);
 		border: 2px solid rgb(132, 91, 47);
 		border-radius: 8px;
@@ -328,5 +260,6 @@
 		font-size: 1rem;
 		cursor: pointer;
 		z-index: 10;
+		text-decoration: none;
 	}
 </style>

@@ -58,7 +58,11 @@ export async function fetchProtected<T>(path: string): Promise<T> {
 		logout();
 		throw new Error("Nicht autorisiert");
 	}
-	if (!res.ok) throw new Error("Fehler beim Abrufen der geschützten Daten");   // Fehlerbehandlung für andere Fehlercodes, z.B. 500 Serverfehler
+	if (!res.ok) {
+		const err: any = new Error("Fehler beim Abrufen der geschützten Daten");
+		err.status = res.status;   // Statuscode im Error-Objekt mitgeben, damit der Aufrufer gezielt reagieren kann
+		throw err;
+	}
 	return res.json();                                                           // Antwort als JSON parsen und zurückgeben, erwartet wird die geschützte Ressource, z.B. ein Array von Daten oder ein Objekt mit Informationen, abhängig von der angeforderten Route
 }
 
