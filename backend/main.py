@@ -187,6 +187,18 @@ def get_recipes(search: str = None, skip: int = 0, limit: int = 100, db: Session
         query = query.filter(models.Recipe.title.ilike(f"%{search}%"))
     return query.offset(skip).limit(limit).all()
 
+@app.get("/recipes/me", response_model=List[schemas.RecipeResponse])
+def get_my_recipes(current_username: str = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.username == current_username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+    
+    # Filtert über die Verknüpfungstabelle recipe_user nach dem Ersteller
+    return db.query(models.Recipe).join(models.RecipeUser).filter(
+        models.RecipeUser.user_id == user.id,
+        models.RecipeUser.usage == "creator"
+    ).all()
+
 @app.get("/recipes/{recipe_id}", response_model=schemas.RecipeResponse)
 def get_recipe(recipe_id: int, db: Session = Depends(get_db)):
     recipe = db.query(models.Recipe).filter(models.Recipe.id == recipe_id).first()
