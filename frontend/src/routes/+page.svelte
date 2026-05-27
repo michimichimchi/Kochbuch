@@ -1,6 +1,7 @@
 <script lang="ts">
     import {onMount} from "svelte";
     import { login, isLoggedIn, register } from '$lib/api';
+	import { goto } from '$app/navigation';
 
     // Zustand, ob der Benutzer eingeloggt ist
     let loggedIn = $state(false);
@@ -35,7 +36,7 @@
 			errorMsg = (error as Error).message;
 		}
 	}
-
+	
 	// Login-Handler, der den Benutzer einloggt und bei Erfolg die Seite neu lädt, um den Zustand zurückzusetzen
 	async function handleLogin() {
 		try {
@@ -48,6 +49,17 @@
 		}
 	}
 
+	// Variable für das, was der Nutzer eintippt
+    let searchQuery = $state("");
+	// Die Funktion, die beim Klick/Enter ausgeführt wird
+    function handleSearch(event: Event) {
+        event.preventDefault(); // Blockiert den Standard-Seiten-Reload
+        
+        if (searchQuery.trim() !== "") {
+            // Leitet weiter zu /rezepte?q=DeinSuchbegriff
+            goto(`/rezepte?q=${encodeURIComponent(searchQuery.trim())}`);
+        }
+    }
 </script>
 
 {#if !loggedIn}
@@ -56,18 +68,23 @@
 
 
 <main>
-	<!-- Hero Section -->
-	<section class="hero">
-		<div class="hero-content">
-			<h1>Kochbuch</h1>
-			<p>Entdecke, teile und genieße die besten Rezepte!</p>
-			<div class="search-bar">
-				<input type="text" placeholder="Suche nach Rezepten, Zutaten..." />
-				<button>Suchen</button>
-			</div>
-		</div>
-	</section>
-
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Kochbuch</h1>
+            <p>Entdecke, teile und genieße die besten Rezepte!</p>
+            
+            <form onsubmit={handleSearch} class="search-bar">
+                <input 
+                    type="text" 
+                    placeholder="Suche nach Rezepten, Zutaten..." 
+                    bind:value={searchQuery}
+                />
+                <button type="submit">Suchen</button>
+            </form>
+            
+        </div>
+    </section>
+	
 	<!-- Kategorien -->
 	<section class="categories">
 		<h2>Kategorien</h2>

@@ -108,9 +108,15 @@ def get_profile(
 # TODO: Eure eigenen Endpoints hier einfügen
 # ---------------------------------------------------------------------------
 
+from sqlalchemy import or_
+
 @app.get("/recipes", response_model=List[schemas.RecipeResponse])
-def get_recipes(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return db.query(models.Recipe).offset(skip).limit(limit).all()
+def get_recipes(search: str = None, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    query = db.query(models.Recipe)
+    if search:
+        # Suche im Titel (case-insensitive)
+        query = query.filter(models.Recipe.title.ilike(f"%{search}%"))
+    return query.offset(skip).limit(limit).all()
 
 @app.post("/recipes", response_model=schemas.RecipeResponse)
 def create_recipe(
@@ -123,6 +129,14 @@ def create_recipe(
     db.commit()
     db.refresh(new_recipe)
     return new_recipe
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Beispiel:
 # @app.get("/items")
