@@ -1,14 +1,13 @@
-from typing import Annotated
+from typing import Annotated, List
 
+import time
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
-from typing import List
-from models import User, Recipe, Category
-from sqlalchemy import func
-from typing import List
+from sqlalchemy.exc import IntegrityError, OperationalError
+from models import User, Recipe, Category, Grocery, RecipeGrocery
+from sqlalchemy import func, text
 
 from auth import (
     DUMMY_HASH,
@@ -22,6 +21,26 @@ import models
 import schemas
 from schemas import Token, UserRegister, UserResponse
 
+# es wird 10 mal versucht sich mit der db zu verbinen, mit Pause von 3 Sekunden dazwischen.
+# Wenn Verbindung erfolgreich ist, wird Funktion mit Rückgabewert None verlassen. 
+# Wenn nach 10 Versuchen keine Verbindung zustande kommt, wird eine RuntimeError mit entsprechender 
+# Fehlermeldung ausgelöst.
+def wait_for_db(retries=10, delay=3):
+    for i in range(retries):
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            print("Datenbankverbindung erfolgreich!")
+            return
+        except OperationalError:
+            print(f"Datenbankverbindung fehlgeschlagen. Neuer Versuch in {delay} Sekunden...")
+            time.sleep(delay)
+    raise RuntimeError("Datenbankverbindung konnte nach mehreren Versuchen nicht hergestellt werden.")
+
+# Funktion wird aufgerufen, um sicherzustellen, dass die Anwendung erst startet, 
+# wenn die Datenbank erreichbar ist. Wichtig, da frontend gestartet wurde,
+# ohne dass db-server bereit war und dieser dann nicht mehr gestartet werden konnte
+wait_for_db()
 # Tabellen anlegen (falls noch nicht vorhanden)
 Base.metadata.create_all(bind=engine)
 
@@ -50,25 +69,98 @@ def seed_database():
     main_dish = db.query(Category).filter_by(name="Hauptgericht").first().id
     dessert = db.query(Category).filter_by(name="Dessert").first().id
     
+    
+    
     # Beispielrezepte anlegen
     recipes = [
         Recipe(title="Tomatensuppe", category_id=starter, time=10, difficulty=1,
                paragraph="Klassische Tomatensuppe mit frischen Kräutern."),
-        Recipe(title="Salat", category_id=starter, time=20, difficulty=2,
-               paragraph="Frischer gemischter Salat mit saisonalem Gemüse."),
+        Recipe(title="Gurkensalat", category_id=starter, time=20, difficulty=2,
+               paragraph="Frischer Gurkensalat."),
         Recipe(title="Spaghetti Bolognese", category_id=main_dish, time=45, difficulty=2,
                paragraph="Italienische Pasta mit Hackfleisch-Tomatensoße."),
-        Recipe(title="Pizza", category_id=main_dish, time=30, difficulty=1,
-               paragraph="Leckere Pizza mit frischen Zutaten."),
-        Recipe(title="Schokoladenmousse", category_id=dessert, time=60, difficulty=3,
-               paragraph="Cremiges Mousse au Chocolat für besondere Anlässe."),
+        Recipe(title="Pizza Salami", category_id=main_dish, time=30, difficulty=1,
+               paragraph="Leckere Pizza mit Salami und Mozzarella."),
+        Recipe(title="Erdbeerquark", category_id=dessert, time=60, difficulty=3,
+               paragraph="Cremiger Erdbeerquark mit frischen Erdbeeren."),
     ]
-    
     # add_all() Rezepte werden im Arbeitsspeicher vorgemerkt
     # commit() speichert sie dann tatsächlich in der DB (INSERT-Befehl wird ausgeführt)
     db.add_all(recipes)
     db.commit()
+
+    # Beispiel-Zutaten anlegen
+    groceries = [
+        Grocery(name="Tomaten"),
+        Grocery(name="Zwiebeln"),
+        Grocery(name="Knoblauch"),
+        Grocery(name="Olivenöl"),
+        Grocery(name="Basilikum"),
+        Grocery(name="Gurke"),
+        Grocery(name="Essig"),
+        Grocery(name="Pasta"),
+        Grocery(name="Hackfleisch"),
+        Grocery(name="Pizzateig"),
+        Grocery(name="Mozzarella"),
+        Grocery(name="Salami"),
+        Grocery(name="Tomatensoße"),
+        Grocery(name="Quark"),
+        Grocery(name="Erdbeeren"),
+    ]
+    db.add_all(groceries)
+    db.commit()
+
+     
+    # IDs der Rezepte dynamisch holen
+    # Für Zuordnung Rezept und Zutaten
+    r_tomatensuppe = db.query(Recipe).filter_by(title="Tomatensuppe").first().id
+    r_gurkensalat  = db.query(Recipe).filter_by(title="Gurkensalat").first().id
+    r_spagetti_bolognese     = db.query(Recipe).filter_by(title="Spaghetti Bolognese").first().id
+    r_pizza_salami        = db.query(Recipe).filter_by(title="Pizza Salami").first().id
+    r_erdbeerquark       = db.query(Recipe).filter_by(title="Erdbeerquark").first().id
+
+    # IDs der Zutaten dynamisch holen
+    # Für Zuordnung Rezept und Zutaten
+    g_tomaten    = db.query(Grocery).filter_by(name="Tomaten").first().id
+    g_zwiebeln   = db.query(Grocery).filter_by(name="Zwiebeln").first().id
+    g_knoblauch  = db.query(Grocery).filter_by(name="Knoblauch").first().id
+    g_olivenoel  = db.query(Grocery).filter_by(name="Olivenöl").first().id
+    g_basilikum  = db.query(Grocery).filter_by(name="Basilikum").first().id
+    g_gurke      = db.query(Grocery).filter_by(name="Gurke").first().id
+    g_essig      = db.query(Grocery).filter_by(name="Essig").first().id
+    g_pasta      = db.query(Grocery).filter_by(name="Pasta").first().id
+    g_hackfl     = db.query(Grocery).filter_by(name="Hackfleisch").first().id
+    g_teig       = db.query(Grocery).filter_by(name="Pizzateig").first().id
+    g_mozzarella = db.query(Grocery).filter_by(name="Mozzarella").first().id
+    g_salami     = db.query(Grocery).filter_by(name="Salami").first().id
+    g_tomsosse   = db.query(Grocery).filter_by(name="Tomatensoße").first().id
+    g_quark      = db.query(Grocery).filter_by(name="Quark").first().id
+    g_erdbeeren  = db.query(Grocery).filter_by(name="Erdbeeren").first().id
+
+    # Zuordnungen der Rezepte und der Zutaten mit Mengenangaben und Einheiten anlegen
+    recipe_groceries = [
+        RecipeGrocery(recipe_id=r_tomatensuppe, grocery_id=g_tomaten,   amount=10, unit="Stück"),
+        RecipeGrocery(recipe_id=r_tomatensuppe, grocery_id=g_zwiebeln,  amount=2,  unit="Stück"),
+        RecipeGrocery(recipe_id=r_tomatensuppe, grocery_id=g_knoblauch, amount=2,  unit="Zehe"),
+        RecipeGrocery(recipe_id=r_tomatensuppe, grocery_id=g_olivenoel, amount=2,  unit="EL"),
+        RecipeGrocery(recipe_id=r_tomatensuppe, grocery_id=g_basilikum, amount=2,  unit="TL"),
+        RecipeGrocery(recipe_id=r_gurkensalat,    grocery_id=g_gurke,     amount=2,  unit="Stück"),
+        RecipeGrocery(recipe_id=r_gurkensalat,    grocery_id=g_essig,     amount=4,  unit="EL"),
+        RecipeGrocery(recipe_id=r_gurkensalat,    grocery_id=g_olivenoel, amount=2,  unit="EL"),
+        RecipeGrocery(recipe_id=r_spagetti_bolognese, grocery_id=g_pasta,     amount=500, unit="g"),
+        RecipeGrocery(recipe_id=r_spagetti_bolognese, grocery_id=g_hackfl,    amount=200, unit="g"),
+        RecipeGrocery(recipe_id=r_spagetti_bolognese, grocery_id=g_tomaten,   amount=10, unit="Stück"),
+        RecipeGrocery(recipe_id=r_pizza_salami,    grocery_id=g_teig,      amount=1,  unit="Blech"),
+        RecipeGrocery(recipe_id=r_pizza_salami,    grocery_id=g_mozzarella,amount=400, unit="g"),
+        RecipeGrocery(recipe_id=r_pizza_salami,    grocery_id=g_salami,    amount=10, unit="Scheiben"),
+        RecipeGrocery(recipe_id=r_pizza_salami,    grocery_id=g_tomsosse,  amount=200, unit="ml"),
+        RecipeGrocery(recipe_id=r_erdbeerquark,    grocery_id=g_quark,     amount=1,  unit="kg"),
+        RecipeGrocery(recipe_id=r_erdbeerquark,    grocery_id=g_erdbeeren, amount=250, unit="g"),
+    ]
     
+    db.add_all(recipe_groceries)
+    db.commit()
+
 # Funktion wird aufgerufen
 seed_database()
 

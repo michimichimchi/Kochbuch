@@ -41,11 +41,6 @@
     }
 </script>
 
-{#if !loggedIn}
-    <a href="/login" class="auth-btn">Anmelden</a>
-{/if}
-
-
 <main>
     <section class="hero">
         <div class="hero-content">
