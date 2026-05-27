@@ -1,6 +1,5 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { goto } from '$app/navigation';
     import { logout, isLoggedIn, fetchProtected } from '$lib/api';
 
     let loggedIn = $state(false);
@@ -22,14 +21,6 @@
             }
         }
     });
-
-    function handleLogout() {
-        logout();
-        loggedIn = false;
-        profile = null;
-        sidebarOpen = false;
-        window.location.reload();
-    }
 </script>
 
 

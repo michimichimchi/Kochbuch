@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import List
-from models import User
+from models import User, Recipe, Category
 
 from auth import (
     DUMMY_HASH,
@@ -22,6 +22,53 @@ from schemas import Token, UserRegister, UserResponse
 
 # Tabellen anlegen (falls noch nicht vorhanden)
 Base.metadata.create_all(bind=engine)
+
+# Funktion, um Beispielrezepte anzulegen. Wird beim Start der Anwendung aufgerufen.
+def seed_database():
+    # aktuelle Datenbank-Session holen
+    db = next(get_db())
+    
+    # Prüfen, ob Recipe einträge hat. wenn ja, dann wurde seed wahrscheinlich schon ausgeführt
+    # und wird deshalb übersprungen. So werden doppelte Einträge und Datenbankfehler vermieden
+    if db.query(Recipe).count() > 0:
+        return  # DB hat schon Einträge, seeden überspringen
+    
+    # Kategorien anlegen
+    # Kategorien in Liste gegeben. Liste wird geprüft, ob die category der Liste so schon 
+    # in der DB existiert. Wenn nicht, wird sie angelegt. So werden doppelte Einträge vermieden.
+    categories = ["Vorspeise", "Hauptgericht", "Dessert"]
+    for cat in categories:
+        if db.query(Category).filter_by(name=cat).first() is None:
+            db.add(Category(name=cat))
+    db.commit()
+    
+    # id aus Tabelle category holen, damit man diese für das Anlegen der Rezepte nehmen kann.
+    # Die category_id ist nämlich Pflichtfeld in Tabelle Recipe (ForeignKey auf Category)
+    starter = db.query(Category).filter_by(name="Vorspeise").first().id
+    main_dish = db.query(Category).filter_by(name="Hauptgericht").first().id
+    dessert = db.query(Category).filter_by(name="Dessert").first().id
+    
+    # Beispielrezepte anlegen
+    recipes = [
+        Recipe(title="Tomatensuppe", category_id=starter, time=10, difficulty=1,
+               paragraph="Klassische Tomatensuppe mit frischen Kräutern."),
+        Recipe(title="Salat", category_id=starter, time=20, difficulty=2,
+               paragraph="Frischer gemischter Salat mit saisonalem Gemüse."),
+        Recipe(title="Spaghetti Bolognese", category_id=main_dish, time=45, difficulty=2,
+               paragraph="Italienische Pasta mit Hackfleisch-Tomatensoße."),
+        Recipe(title="Pizza", category_id=main_dish, time=30, difficulty=1,
+               paragraph="Leckere Pizza mit frischen Zutaten."),
+        Recipe(title="Schokoladenmousse", category_id=dessert, time=60, difficulty=3,
+               paragraph="Cremiges Mousse au Chocolat für besondere Anlässe."),
+    ]
+    
+    # add_all() Rezepte werden im Arbeitsspeicher vorgemerkt
+    # commit() speichert sie dann tatsächlich in der DB (INSERT-Befehl wird ausgeführt)
+    db.add_all(recipes)
+    db.commit()
+    
+# Funktion wird aufgerufen
+seed_database()
 
 app = FastAPI(title="Mein Projekt", version="0.1.0")
 
@@ -218,6 +265,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
 
 # Beispiel:
 # @app.get("/items")
