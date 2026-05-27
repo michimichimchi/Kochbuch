@@ -30,6 +30,27 @@
             loading = false;
         }
     });
+
+    async function handleDelete(id: number, event: Event) {
+        event.preventDefault(); // Verhindert, dass der Link zur Detailseite ausgelöst wird
+        
+        if (!confirm("Möchtest du dieses Rezept wirklich löschen?")) return;
+
+        const token = localStorage.getItem("token");
+        try {
+            const res = await fetch(`http://localhost:8000/recipes/${id}`, {
+                method: "DELETE",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (!res.ok) throw new Error("Fehler beim Löschen");
+            
+            // Rezept aus dem Frontend-Array entfernen (UI aktualisiert sich automatisch)
+            recipes = recipes.filter(r => r.id !== id);
+        } catch (error) {
+            alert((error as Error).message);
+        }
+    }
 </script>
 
 <main class="container">
@@ -60,6 +81,9 @@
                             {#if recipe.time}<span>⏱ {recipe.time} Min.</span>{/if}
                             {#if recipe.difficulty}<span>💪 {recipe.difficulty}/5</span>{/if}
                         </div>
+                        <button class="delete-btn" onclick={(e) => handleDelete(recipe.id, e)}>
+                            🗑️ Löschen
+                        </button>
                     </div>
                 </a>
             {/each}
@@ -86,6 +110,8 @@
         text-decoration: none;
         color: inherit;
         transition: box-shadow 0.2s;
+        display: flex;
+        flex-direction: column;
     }
     .recipe-card:hover {
         box-shadow: 0 4px 16px rgba(132,91,47,0.12);
@@ -98,9 +124,24 @@
         justify-content: center;
         font-size: 3rem;
     }
-    .recipe-content { padding: 1rem; }
+    .recipe-content { padding: 1rem; display: flex; flex-direction: column; flex-grow: 1; }
     .recipe-title { color: #845b2f; font-weight: 600; font-size: 1.1rem; margin-bottom: 0.5rem; }
-    .recipe-meta { display: flex; gap: 0.8rem; color: #a97c50; font-size: 0.9rem; }
+    .recipe-meta { display: flex; gap: 0.8rem; color: #a97c50; font-size: 0.9rem; margin-bottom: 1rem; }
+    
+    .delete-btn {
+        margin-top: auto;
+        background: #ffe6e6;
+        color: #b00020;
+        border: none;
+        border-radius: 6px;
+        padding: 0.5rem;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background 0.2s;
+        width: 100%;
+    }
+    .delete-btn:hover { background: #ffcccc; }
+
     .info { color: #845b2f; }
     .error { color: #b00020; background: #ffe6e6; padding: 1rem; border-radius: 8px; }
     .empty-state { text-align: center; padding: 3rem; background: #fff; border-radius: 16px; color: #845b2f; }

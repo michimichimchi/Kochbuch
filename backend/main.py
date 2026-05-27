@@ -263,6 +263,49 @@ def create_recipe(
 
     return new_recipe
 
+@app.delete("/recipes/{recipe_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_recipe(
+    recipe_id: int,
+    db: Session = Depends(get_db),
+    current_username: str = Depends(get_current_user)
+):
+    # 1. Benutzer ermitteln
+    user = db.query(models.User).filter(models.User.username == current_username).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+
+    # 2. Rezept suchen
+    recipe = db.query(models.Recipe).filter(models.Recipe.id == recipe_id).first()
+    if recipe is None:
+        raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+
+    # 3. Berechtigung prüfen (Ist der Nutzer der Ersteller?)
+    ownership = db.query(models.RecipeUser).filter(
+        models.RecipeUser.recipe_id == recipe_id,
+        models.RecipeUser.user_id == user.id,
+        models.RecipeUser.usage == "creator"
+    ).first()
+
+    if ownership is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Du bist nicht berechtigt, dieses Rezept zu löschen"
+        )
+
+    try:
+        # 4. Abhängigkeiten in den Verknüpfungstabellen löschen
+        db.query(models.RecipeGrocery).filter(models.RecipeGrocery.recipe_id == recipe_id).delete()
+        db.query(models.RecipeUser).filter(models.RecipeUser.recipe_id == recipe_id).delete()
+        db.query(models.Evaluation).filter(models.Evaluation.recipe_id == recipe_id).delete()
+
+        # 5. Rezept endgültig löschen
+        db.delete(recipe)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Fehler beim Löschen des Rezepts")
+
+    return None
 
 @app.get("/evaluations", response_model=List[schemas.EvaluationResponse])
 def get_evaluations(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
