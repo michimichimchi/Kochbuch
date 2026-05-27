@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-
+from typing import Optional, List
 
 # --- Auth-Schemas ---
 
@@ -22,31 +22,110 @@ class Token(BaseModel):
     token_type: str
 
 
-# Basis Schema
+class RecipeIngredientCreate(BaseModel):
+    name: str = Field(..., max_length=100)
+    amount: Optional[int] = None
+    unit: Optional[str] = Field(None, max_length=50)
+
+
 class RecipeBase(BaseModel):
-    title: str = Field(..., max_length=255, description="Der Name des Rezepts")
-    ingredients: str = Field(...)
-    instructions: str = Field(...)
+    category_id: int
+    title: str = Field(..., max_length=100)
+    time: Optional[int] = None
+    paragraph: Optional[str] = Field(None, max_length=5000)
+    image: Optional[str] = Field(None, max_length=200)
+    difficulty: Optional[int] = Field(None, ge=1, le=5)
 
-# Schema für POST-Request
+
 class RecipeCreate(RecipeBase):
-    pass
+    ingredients: List[RecipeIngredientCreate] = []
 
-# Schema für API Response
+
 class RecipeResponse(RecipeBase):
     id: int
-    user_id: int
 
     class Config:
-        from_attributes = True 
+        from_attributes = True
 
-# TODO: Fügt hier eure eigenen Schemas hinzu
-# class ItemCreate(BaseModel):
-#     name: str
-#     price: int
-#
-# class ItemResponse(BaseModel):
-#     id: int
-#     name: str
-#     price: int
-#     model_config = {"from_attributes": True}
+
+class RecipeGroceryBase(BaseModel):
+    recipe_id: int
+    grocery_id: int
+    amount: Optional[int] = None
+    unit: Optional[str] = Field(None, max_length=50)
+
+
+class RecipeGroceryCreate(RecipeGroceryBase):
+    pass
+
+
+class RecipeGroceryResponse(RecipeGroceryBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+class RecipeUserBase(BaseModel):
+    recipe_id: int
+    user_id: int
+    usage: Optional[str] = Field(None, max_length=100)
+
+
+class RecipeUserCreate(RecipeUserBase):
+    pass
+
+
+class RecipeUserResponse(RecipeUserBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+class EvaluationBase(BaseModel):
+    rating: Optional[int] = Field(None, ge=1, le=5)
+    comment: Optional[str] = Field(None, max_length=500)
+
+
+class EvaluationCreate(EvaluationBase):
+    recipe_id: int
+
+
+class EvaluationResponse(EvaluationBase):
+    id: int
+    user_id: int
+    recipe_id: int
+
+    class Config:
+        from_attributes = True
+
+
+class CategoryBase(BaseModel):
+    name: str = Field(..., max_length=100)
+
+
+class CategoryCreate(CategoryBase):
+    pass
+
+
+class CategoryResponse(CategoryBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+class GroceryBase(BaseModel):
+    name: Optional[str] = Field(None, max_length=100)
+    image: Optional[str] = Field(None, max_length=200)
+
+class GroceryCreate(GroceryBase):
+    pass
+
+
+class GroceryResponse(GroceryBase):
+    id: int
+
+    class Config:
+        from_attributes = True

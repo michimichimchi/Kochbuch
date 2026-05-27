@@ -1,19 +1,36 @@
 <script lang="ts">
-    import {onMount} from "svelte";
-    import { isLoggedIn,} from '$lib/api';
-	import { goto } from '$app/navigation';
+    import { onMount } from "svelte";
+    import { isLoggedIn } from '$lib/api';
+    import { goto } from '$app/navigation';
 
     // Zustand, ob der Benutzer eingeloggt ist
     let loggedIn = $state(false);
-	
-	// Überprüft beim Laden der Seite, ob der Benutzer bereits eingeloggt ist
-	onMount(() => {
-		loggedIn = isLoggedIn();
-	})
+    
+    // Variablen für Top 5 Rezepte
+    let topRecipes = $state<any[]>([]);
+    let loadingTop = $state(true);
+    
+    // Überprüft beim Laden der Seite den Login UND holt die Top-Rezepte
+    onMount(async () => {
+        loggedIn = isLoggedIn();
+        
+        // NEU: Die besten Rezepte vom Backend holen
+        try {
+            const res = await fetch("http://localhost:8000/recipes/top");
+            if (res.ok) {
+                topRecipes = await res.json();
+            }
+        } catch (error) {
+            console.error("Fehler beim Laden der Top-Rezepte:", error);
+        } finally {
+            loadingTop = false;
+        }
+    })
 
-	// Variable für das, was der Nutzer eintippt
+    // Variable für das, was der Nutzer eintippt
     let searchQuery = $state("");
-	// Die Funktion, die beim Klick/Enter ausgeführt wird
+    
+    // Die Funktion, die beim Klick/Enter ausgeführt wird
     function handleSearch(event: Event) {
         event.preventDefault(); // Blockiert den Standard-Seiten-Reload
         
@@ -54,37 +71,40 @@
 			<div class="category-card">Vorspeisen</div>
 			<div class="category-card">Hauptgerichte</div>
 			<div class="category-card">Desserts</div>
-			<div class="category-card">Vegetarisch</div>
 			<div class="category-card">Snacks</div>
 			<div class="category-card">Getränke</div>
-			<div class="category-card">High Protein</div>
 		</div>
 	</section>
 
 	<!-- Beliebte Rezepte -->
 	<section class="popular">
-        <h2>Beliebte Rezepte</h2>
+        <h2>Beliebte Rezepte ⭐</h2>
         <div class="recipe-list">
-            <div class="recipe-card">
-                <img src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80" alt="Rezept 1" />
-                <div class="recipe-title">Rezept 1</div>
-            </div>
-            <div class="recipe-card">
-                <img src="https://images.unsplash.com/photo-1519864600265-abb23847ef2c?auto=format&fit=crop&w=400&q=80" alt="Rezept 2" />
-                <div class="recipe-title">Rezept 2</div>
-            </div>
-            <div class="recipe-card">
-                <img src="https://images.unsplash.com/photo-1464306076886-debca5e8a6b0?auto=format&fit=crop&w=400&q=80" alt="Rezept 3" />
-                <div class="recipe-title">Rezept 3</div>
-            </div>
-            <div class="recipe-card">
-                <img src="https://images.unsplash.com/photo-1525130413817-d9f869a4a0d0?auto=format&fit=crop&w=400&q=80" alt="Rezept 4" />
-                <div class="recipe-title">Rezept 4</div>
-            </div>
-            <div class="recipe-card">
-                <img src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80" alt="Rezept 5" />
-                <div class="recipe-title">Rezept 5</div>
-            </div>
+            
+            {#if loadingTop}
+                <p style="color: #845b2f;">Die best bewerteten Rezepte 🍳</p>
+            {:else if topRecipes.length === 0}
+                <p style="color: #845b2f;">Es wurden noch keine Rezepte bewertet. Sei der Erste!</p>
+            {:else}
+                {#each topRecipes as recipe}
+                    <a class="recipe-card" href={`/rezepte/${recipe.id}`} style="text-decoration: none;">
+                        
+                        {#if recipe.image && recipe.image.startsWith("http")}
+                            <img src={recipe.image} alt={recipe.title} />
+                        {:else}
+                            <div style="width: 100%; height: 140px; background: #f3e7d7; display: flex; align-items: center; justify-content: center; font-size: 3rem;">🍲</div>
+                        {/if}
+
+                        <div class="recipe-title">{recipe.title}</div>
+                        
+                        <div style="font-size: 0.85rem; color: #a97c50; padding-bottom: 0.8rem; display: flex; justify-content: space-around;">
+                            {#if recipe.time}<span>⏱ {recipe.time} Min.</span>{/if}
+                            {#if recipe.difficulty}<span>💪 {recipe.difficulty}/5</span>{/if}
+                        </div>
+                    </a>
+                {/each}
+            {/if}
+            
         </div>
     </section>
 

@@ -1,201 +1,198 @@
 <script lang="ts">
-    import { goto } from '$app/navigation';
+    // 'page' importieren, um die URL auslesen zu können
     import { page } from '$app/stores';
-    import { fetchPublic } from '$lib/api';
 
-    // Suchbegriff aus URL holen
+    type Recipe = {
+        id: number;
+        category_id: number;
+        title: string;
+        time?: number | null;
+        paragraph?: string | null;
+        image?: string | null;
+        difficulty?: number | null;
+    };
+
+    // Suchbegriff aus der URL (?q=Pizza) abfangen
     let searchQuery = $derived($page.url.searchParams.get('q') || "");
-    let searchInput = $state(searchQuery);
-    let recipes = $state<{ id: number; title: string; time: number; difficulty: number; image: string }[]>([]);
-    let isLoading = $state(false);
-    let error = $state("");
 
-    // Rezepte laden, wenn sich der Suchbegriff ändert
+    let recipes = $state<Recipe[]>([]);
+    let loading = $state(true);
+    let errorMsg = $state("");
+
+    // $effect reagiert automatisch auf Änderungen des Suchbegriffs
     $effect(() => {
         ladeRezepte(searchQuery);
     });
 
     async function ladeRezepte(query: string) {
-        isLoading = true;
-        error = "";
+        loading = true;
+        errorMsg = "";
         try {
-            // API-Call: /rezepte?search=...
+            // Den Filter-Zusatz für das Backend zusammenbauen
             const q = query ? `?search=${encodeURIComponent(query)}` : "";
-            recipes = await fetchPublic(`/recipes${q}`);
-        } catch (e) {
-            error = (e as Error).message;
-            recipes = [];
+            
+            // Anfrage an das Backend schicken (mit oder ohne Suchbegriff)
+            const response = await fetch(`http://localhost:8000/recipes${q}`);
+
+            if (!response.ok) {
+                throw new Error("Rezepte konnten nicht geladen werden");
+            }
+
+            recipes = await response.json();
+        } catch (error) {
+            errorMsg = (error as Error).message;
         } finally {
-            isLoading = false;
+            loading = false;
         }
     }
 
-    // Sucht beim Absenden des Formulars
-    function handleSearch(e: Event) {
-        e.preventDefault();
-        // Navigiert mit neuem Suchbegriff in der URL
-        goto(`/rezepte?q=${encodeURIComponent(searchInput)}`);
+    function hasValidImage(image?: string | null) {
+        return image && image.startsWith("http");
     }
 </script>
 
-<div class="results-container">
-    <div class="header">
-        <form onsubmit={handleSearch} class="search-form">
-            <input type="text" bind:value={searchInput} placeholder="Nach was suchst du heute? 🍳" />
-            <button type="submit">Suchen</button>
-        </form>
-        
-        {#if searchQuery}
-            <h1>Suchergebnisse für "{searchQuery}"</h1>
-        {:else}
-            <h1>Alle Rezepte</h1>
-            <p>Entdecke unsere gesamte Sammlung.</p>
-        {/if}
-    </div>
+<main>
+    <section class="recipes">
+        <h1>Alle Rezepte</h1>
 
-{#if isLoading}
-        <div class="loading">Suchen... 🍳</div>
-    {:else if error}
-        <div class="no-results">{error}</div>
-    {:else if recipes.length === 0}
-        <div class="no-results">Leider keine Rezepte gefunden. Versuch einen anderen Begriff!</div>
-    {:else}
-        <div class="recipe-grid">
-            {#each recipes as recipe (recipe.id)}
-                <div class="recipe-card">
-                    <div class="no-image">🍲 Rezept</div>
-                    <div class="card-info">
-                        <h3>{recipe.title}</h3>
-                        <div class="meta">
-                            <span style="font-size: 0.85rem; line-height: 1.4;">
-                                <strong>Zutaten:</strong><br/>
-                                {#if recipe.ingredients}
-                                    {recipe.ingredients.substring(0, 50)}...
-                                {:else}
-                                    Keine Angaben
+        {#if loading}
+            <p class="info">Rezepte werden geladen...</p>
+        {:else if errorMsg}
+            <p class="error">{errorMsg}</p>
+        {:else if recipes.length === 0}
+            <p class="info">Noch keine Rezepte vorhanden.</p>
+        {:else}
+            <div class="recipe-list">
+                {#each recipes as recipe}
+                    <a class="recipe-card" href={`/rezepte/${recipe.id}`}>
+                        {#if hasValidImage(recipe.image)}
+                            <img src={recipe.image} alt={recipe.title} />
+                        {:else}
+                            <div class="image-placeholder">🍲</div>
+                        {/if}
+
+                        <div class="recipe-content">
+                            <div class="recipe-title">{recipe.title}</div>
+
+                            <div class="recipe-meta">
+                                {#if recipe.time}
+                                    <span>⏱ {recipe.time} Min.</span>
                                 {/if}
-                            </span>
+
+                                {#if recipe.difficulty}
+                                    <span>💪 {recipe.difficulty}/5</span>
+                                {/if}
+                            </div>
+
+                            {#if recipe.paragraph}
+                                <p>{recipe.paragraph}</p>
+                            {/if}
                         </div>
-                    </div>
-                </div>
-            {/each}
-        </div>
-    {/if}
-</div>
+                    </a>
+                {/each}
+            </div>
+        {/if}
+    </section>
+</main>
 
 <style>
-    .results-container {
-        max-width: 1100px;
-        margin: 2rem auto 5rem auto;
-        padding: 0 1.5rem;
+    main {
+        font-family: 'Segoe UI', sans-serif;
+        background: #f8f5f0;
+        min-height: 100vh;
+        padding: 3rem 1rem;
     }
-    .header {
-        margin-bottom: 2rem;
-        border-bottom: 2px solid #f3e7d7;
-        padding-bottom: 1rem;
+
+    .recipes {
+        max-width: 900px;
+        margin: 0 auto;
     }
-    .header h1 {
+
+    h1 {
         color: #845b2f;
-        margin: 0 0 0.5rem 0;
+        margin-bottom: 1.5rem;
+        font-size: 2rem;
     }
-    .header p {
-        color: #777;
-        margin: 0;
+
+    .recipe-list {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        justify-content: flex-start;
     }
-    .loading, .no-results {
-        text-align: center;
-        padding: 4rem 0;
-        color: #888;
-        font-size: 1.2rem;
-    }
-    .recipe-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 2rem;
-    }
+
     .recipe-card {
         background: #fff;
-        border-radius: 12px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        border-radius: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
         overflow: hidden;
-        transition: transform 0.2s, box-shadow 0.2s;
-        cursor: pointer;
+        width: 260px;
+        transition: box-shadow 0.2s;
     }
+
     .recipe-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 20px rgba(132,91,47,0.15);
+        box-shadow: 0 4px 16px rgba(132,91,47,0.12);
     }
-    .recipe-card img, .no-image {
+
+    .recipe-card img,
+    .image-placeholder {
         width: 100%;
-        height: 180px;
+        height: 140px;
+    }
+
+    .recipe-card img {
         object-fit: cover;
     }
-    .no-image {
-        background: #eee;
+
+    .image-placeholder {
+        background: #f3e7d7;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #aaa;
+        font-size: 3rem;
     }
-    .card-info {
-        padding: 1.2rem;
+
+    .recipe-content {
+        padding: 0.9rem;
     }
-    .card-info h3 {
-        margin: 0 0 1rem 0;
-        color: #333;
-        font-size: 1.2rem;
+
+    .recipe-title {
+        color: #845b2f;
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
     }
-    .meta {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.9rem;
-        color: #666;
-        background: #f8f5f0;
-        padding: 0.5rem;
-        border-radius: 6px;
-        /* --- Suchleiste auf der Ergebnisseite --- */
-    .search-form {
+
+    .recipe-meta {
         display: flex;
         gap: 0.8rem;
-        margin-bottom: 1.5rem;
-        max-width: 600px;
+        flex-wrap: wrap;
+        color: #a97c50;
+        font-size: 0.9rem;
+        margin-bottom: 0.6rem;
     }
-    
-    .search-form input {
-        flex: 1; /* Nimmt den restlichen Platz ein */
-        padding: 0.8rem 1.2rem;
-        border: 2px solid #eaddcf;
-        border-radius: 8px;
-        font-size: 1.05rem;
-        font-family: inherit;
-        outline: none;
-        transition: border-color 0.2s, box-shadow 0.2s;
-        background-color: #fff;
+
+    .recipe-content p {
+        color: #4b4035;
+        font-size: 0.95rem;
+        line-height: 1.4;
+        margin: 0;
     }
-    
-    .search-form input:focus {
-        border-color: #845b2f;
-        box-shadow: 0 0 0 3px rgba(132,91,47,0.1);
+
+    .info,
+    .error {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 1rem;
     }
-    
-    .search-form button {
-        padding: 0 1.8rem;
-        background-color: #845b2f;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-size: 1.05rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background-color 0.2s, transform 0.1s;
+
+    .error {
+        color: #b00020;
     }
-    
-    .search-form button:hover {
-        background-color: #6a4925;
-    }
-    
-    .search-form button:active {
-        transform: scale(0.98); /* Kleiner Klick-Effekt */
-    }
+
+    .recipe-card {
+    text-decoration: none;
+    color: inherit;
     }
 </style>

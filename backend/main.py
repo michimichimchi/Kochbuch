@@ -4,8 +4,10 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from typing import List
 from models import User, Recipe, Category, Grocery, RecipeGrocery
+from sqlalchemy import func
 
 from auth import (
     DUMMY_HASH,
@@ -224,6 +226,25 @@ def get_profile(
     return user
 
 
+@app.get("/recipes/top", response_model=List[schemas.RecipeResponse])
+def get_top_recipes(limit: int = 3, db: Session = Depends(get_db)):
+    """Holt die Rezepte mit der höchsten Durchschnittsbewertung."""
+    
+    top_recipes = (
+        db.query(models.Recipe)
+        # Verknüpft die Rezepte mit eurer neuen Evaluation-Tabelle
+        .outerjoin(models.Evaluation, models.Recipe.id == models.Evaluation.recipe_id)
+        # Gruppiert alles pro Rezept
+        .group_by(models.Recipe.id)
+        # Berechnet den Durchschnitt aus der Spalte 'rating' und sortiert absteigend
+        .order_by(func.coalesce(func.avg(models.Evaluation.rating), 0).desc())
+        .limit(limit)
+        .all()
+    )
+    
+    return top_recipes
+
+
 # ---------------------------------------------------------------------------
 # TODO: Eure eigenen Endpoints hier einfügen
 # ---------------------------------------------------------------------------
@@ -238,17 +259,97 @@ def get_recipes(search: str = None, skip: int = 0, limit: int = 100, db: Session
         query = query.filter(models.Recipe.title.ilike(f"%{search}%"))
     return query.offset(skip).limit(limit).all()
 
+@app.get("/recipes/{recipe_id}", response_model=schemas.RecipeResponse)
+def get_recipe(recipe_id: int, db: Session = Depends(get_db)):
+    recipe = db.query(models.Recipe).filter(models.Recipe.id == recipe_id).first()
+
+    if recipe is None:
+        raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+
+    return recipe
+
 @app.post("/recipes", response_model=schemas.RecipeResponse)
 def create_recipe(
-    recipe: schemas.RecipeCreate, 
+    recipe: schemas.RecipeCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_username: str = Depends(get_current_user)
 ):
-    new_recipe = models.Recipe(**recipe.model_dump(), user_id=current_user.id)
-    db.add(new_recipe)
+    user = db.query(models.User).filter(models.User.username == current_username).first()
+
+    if user is None:
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+
+    recipe_data = recipe.model_dump(exclude={"ingredients"})
+    new_recipe = models.Recipe(**recipe_data)
+
+    try:
+        db.add(new_recipe)
+        db.commit()
+        db.refresh(new_recipe)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Rezepttitel existiert bereits")
+
+    recipe_user = models.RecipeUser(
+        recipe_id=new_recipe.id,
+        user_id=user.id,
+        usage="creator"
+    )
+
+    db.add(recipe_user)
+
+    for ingredient in recipe.ingredients:
+        grocery = db.query(models.Grocery).filter(
+            models.Grocery.name == ingredient.name
+        ).first()
+
+        if grocery is None:
+            grocery = models.Grocery(name=ingredient.name)
+            db.add(grocery)
+            db.commit()
+            db.refresh(grocery)
+
+        recipe_grocery = models.RecipeGrocery(
+            recipe_id=new_recipe.id,
+            grocery_id=grocery.id,
+            amount=ingredient.amount,
+            unit=ingredient.unit
+        )
+
+        db.add(recipe_grocery)
+
     db.commit()
     db.refresh(new_recipe)
+
     return new_recipe
+
+
+@app.get("/evaluations", response_model=List[schemas.EvaluationResponse])
+def get_evaluations(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return db.query(models.Evaluation).offset(skip).limit(limit).all()
+
+
+@app.post("/evaluations", response_model=schemas.EvaluationResponse)
+def create_evaluation(
+    evaluation: schemas.EvaluationCreate,
+    db: Session = Depends(get_db),
+    current_username: str = Depends(get_current_user)
+):
+    user = db.query(models.User).filter(models.User.username == current_username).first()
+
+    if user is None:
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+
+    new_evaluation = models.Evaluation(
+        **evaluation.model_dump(),
+        user_id=user.id
+    )
+
+    db.add(new_evaluation)
+    db.commit()
+    db.refresh(new_evaluation)
+
+    return new_evaluation
 
 app.add_middleware(
     CORSMiddleware,
@@ -257,8 +358,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
 
 # Beispiel:
 # @app.get("/items")
