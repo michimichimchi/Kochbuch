@@ -291,14 +291,34 @@ def get_my_recipes(current_username: str = Depends(get_current_user), db: Sessio
         models.RecipeUser.usage == "creator"
     ).all()
 
-@app.get("/recipes/{recipe_id}", response_model=schemas.RecipeResponse)
+@app.get("/recipes/{recipe_id}")
 def get_recipe(recipe_id: int, db: Session = Depends(get_db)):
     recipe = db.query(models.Recipe).filter(models.Recipe.id == recipe_id).first()
 
     if recipe is None:
         raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+    
+    groceries = db.query(models.RecipeGrocery).filter(models.RecipeGrocery.recipe_id == recipe_id).all()
+    ingredients_list = []
+    for g in groceries:
+        grocery_item = db.query(models.Grocery).filter(models.Grocery.id == g.grocery_id).first()
+        if grocery_item:
+            ingredients_list.append({
+                "name": grocery_item.name,
+                "amount": g.amount,
+                "unit": g.unit
+            })
 
-    return recipe
+    return {
+        "id": recipe.id,
+        "title": recipe.title,
+        "category_id": recipe.category_id,
+        "time": recipe.time,
+        "difficulty": recipe.difficulty,
+        "paragraph": recipe.paragraph,
+        "image": recipe.image,
+        "ingredients": ingredients_list
+    }
 
 @app.post("/recipes", response_model=schemas.RecipeResponse)
 def create_recipe(

@@ -3,6 +3,12 @@
     import { page } from "$app/state";
     import { isLoggedIn, fetchProtected } from "$lib/api";
 
+    type Ingredient = {
+        name: string;
+        amount?: number | null;
+        unit?: string | null;
+    };
+
     type Recipe = {
         id: number;
         category_id: number;
@@ -11,6 +17,7 @@
         paragraph?: string | null;
         image?: string | null;
         difficulty?: number | null;
+        ingredients: Ingredient[];
     };
 
     let recipe = $state<Recipe | null>(null);
@@ -95,6 +102,19 @@
                     {#if recipe.difficulty}
                         <span>💪 Schwierigkeit {recipe.difficulty}/5</span>
                     {/if}
+
+                    <ul>
+                        {#each recipe.ingredients as ingredient}
+                            <li>
+                                <span class="amount">
+                                    {#if ingredient.amount}{ingredient.amount}{/if} 
+                                    {#if ingredient.unit}{ingredient.unit}{/if}
+                                </span>
+                                <span class="name">{ingredient.name}</span>
+                            </li>
+                        {/each}
+                    </ul>
+
                 </div>
 
                 {#if recipe.paragraph}
