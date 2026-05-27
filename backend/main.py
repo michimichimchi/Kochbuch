@@ -1,13 +1,13 @@
-from typing import Annotated
+from typing import Annotated, List
 
+import time
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
-from typing import List
+from sqlalchemy.exc import IntegrityError, OperationalError
 from models import User, Recipe, Category, Grocery, RecipeGrocery
-from sqlalchemy import func
+from sqlalchemy import func, text
 
 from auth import (
     DUMMY_HASH,
@@ -21,6 +21,26 @@ import models
 import schemas
 from schemas import Token, UserRegister, UserResponse
 
+# es wird 10 mal versucht sich mit der db zu verbinen, mit Pause von 3 Sekunden dazwischen.
+# Wenn Verbindung erfolgreich ist, wird Funktion mit Rückgabewert None verlassen. 
+# Wenn nach 10 Versuchen keine Verbindung zustande kommt, wird eine RuntimeError mit entsprechender 
+# Fehlermeldung ausgelöst.
+def wait_for_db(retries=10, delay=3):
+    for i in range(retries):
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            print("Datenbankverbindung erfolgreich!")
+            return
+        except OperationalError:
+            print(f"Datenbankverbindung fehlgeschlagen. Neuer Versuch in {delay} Sekunden...")
+            time.sleep(delay)
+    raise RuntimeError("Datenbankverbindung konnte nach mehreren Versuchen nicht hergestellt werden.")
+
+# Funktion wird aufgerufen, um sicherzustellen, dass die Anwendung erst startet, 
+# wenn die Datenbank erreichbar ist. Wichtig, da frontend gestartet wurde,
+# ohne dass db-server bereit war und dieser dann nicht mehr gestartet werden konnte
+wait_for_db()
 # Tabellen anlegen (falls noch nicht vorhanden)
 Base.metadata.create_all(bind=engine)
 
@@ -56,11 +76,11 @@ def seed_database():
         Recipe(title="Tomatensuppe", category_id=starter, time=10, difficulty=1,
                paragraph="Klassische Tomatensuppe mit frischen Kräutern."),
         Recipe(title="Gurkensalat", category_id=starter, time=20, difficulty=2,
-               paragraph="Frischer gemischter Salat mit saisonalem Gemüse."),
+               paragraph="Frischer Gurkensalat."),
         Recipe(title="Spaghetti Bolognese", category_id=main_dish, time=45, difficulty=2,
                paragraph="Italienische Pasta mit Hackfleisch-Tomatensoße."),
         Recipe(title="Pizza Salami", category_id=main_dish, time=30, difficulty=1,
-               paragraph="Leckere Pizza mit frischen Zutaten."),
+               paragraph="Leckere Pizza mit Salami und Mozzarella."),
         Recipe(title="Erdbeerquark", category_id=dessert, time=60, difficulty=3,
                paragraph="Cremiger Erdbeerquark mit frischen Erdbeeren."),
     ]
@@ -71,21 +91,21 @@ def seed_database():
 
     # Beispiel-Zutaten anlegen
     groceries = [
-        Grocery(name="Tomaten", durability_score=2, durability="Hält sich ca. 1 Woche im Kühlschrank"),
-        Grocery(name="Zwiebeln", durability_score=3, durability="Hält sich ca. 2 Wochen im Kühlschrank"),
-        Grocery(name="Knoblauch", durability_score=4, durability="Hält sich ca. 3 Wochen im Kühlschrank"),
-        Grocery(name="Olivenöl", durability_score=5, durability="Hält sich ca. 6 Monate im Kühlschrank"),
-        Grocery(name="Basilikum", durability_score=2, durability="Hält sich ca. 1 Woche im Kühlschrank"),
-        Grocery(name="Gurke", durability_score=2, durability="Hält sich ca. 1 Woche im Kühlschrank"),
-        Grocery(name="Essig", durability_score=5, durability="Hält sich ca. 1 Jahr im Kühlschrank"),
-        Grocery(name="Pasta", durability_score=5, durability="Hält sich ca. 2 Jahre trocken"),
-        Grocery(name="Hackfleisch", durability_score=1, durability="Hält sich ca. 1 Tag im Kühlschrank"),
-        Grocery(name="Pizzateig", durability_score=2, durability="Hält sich ca. 3 Tage im Kühlschrank"),
-        Grocery(name="Mozzarella", durability_score=2, durability="Hält sich ca. 1 Woche im Kühlschrank"),
-        Grocery(name="Salami", durability_score=3, durability="Hält sich ca. 2 Wochen im Kühlschrank"),
-        Grocery(name="Tomatensoße", durability_score=5, durability="Hält sich ca. 1 Jahr im Kühlschrank"),
-        Grocery(name="Quark", durability_score=5, durability="Hält sich ca. 1 Monat im Kühlschrank"),
-        Grocery(name="Erdbeeren", durability_score=2, durability="Hält sich ca. 1 Woche im Kühlschrank"),
+        Grocery(name="Tomaten"),
+        Grocery(name="Zwiebeln"),
+        Grocery(name="Knoblauch"),
+        Grocery(name="Olivenöl"),
+        Grocery(name="Basilikum"),
+        Grocery(name="Gurke"),
+        Grocery(name="Essig"),
+        Grocery(name="Pasta"),
+        Grocery(name="Hackfleisch"),
+        Grocery(name="Pizzateig"),
+        Grocery(name="Mozzarella"),
+        Grocery(name="Salami"),
+        Grocery(name="Tomatensoße"),
+        Grocery(name="Quark"),
+        Grocery(name="Erdbeeren"),
     ]
     db.add_all(groceries)
     db.commit()
