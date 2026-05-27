@@ -1,6 +1,6 @@
 <script lang="ts">
     import {onMount} from "svelte";
-    import { login, isLoggedIn, register } from '$lib/api';
+    import { isLoggedIn,} from '$lib/api';
 	import { goto } from '$app/navigation';
 
     // Zustand, ob der Benutzer eingeloggt ist
@@ -10,29 +10,6 @@
 	onMount(() => {
 		loggedIn = isLoggedIn();
 	})
-
-	// Registrierungs-Handler, der nach erfolgreicher Registrierung direkt handleLogin() aufruft, damit Benutzer nach Registrierung auch eingeloggt wirdloggt wird
-	async function handleRegister() {
-		errorMsg = "";
-		try {
-			await register(regUsername, regEmail, regPassword); //Funktion register() aus api.ts aufrufen, um den Benutzer zu registrieren
-			await handleLogin();                                // handle Login() aufrufen, um den Benutzer direkt nach der Registrierung einzuloggen                                       
-		} catch (error) {
-			errorMsg = (error as Error).message;
-		}
-	}
-	
-	// Login-Handler, der den Benutzer einloggt und bei Erfolg die Seite neu lädt, um den Zustand zurückzusetzen
-	async function handleLogin() {
-		try {
-			await login(loginUsername, loginPassword); // Funktion login() aus api.ts aufrufen, um den Benutzer einzuloggen
-			loggedIn = true;
-			showAuth = false;         // Auth-Formular ausblenden
-			window.location.reload(); // Seite neu laden, um den Zustand zurückzusetzen
-		} catch (error) {
-			errorMsg = (error as Error).message;
-		}
-	}
 
 	// Variable für das, was der Nutzer eintippt
     let searchQuery = $state("");
