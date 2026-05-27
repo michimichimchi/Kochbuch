@@ -33,7 +33,6 @@
         {#if loggedIn}
             <li><a href="/meine-rezepte" class="nav-link">Meine Rezepte</a></li>
             <li><a href="/rezept-neu" class="nav-link">Neues Rezept ✚</a></li>
-            <li><a href="/meal-prep" class="nav-link">Meal Prep</a></li>
             <li><a href="/profil" class="nav-link">Mein Profil</a></li>
         {/if}
     </ul>
