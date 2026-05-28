@@ -9,6 +9,7 @@
         time?: number | null;
         image?: string | null;
         difficulty?: number | null;
+        is_public?: boolean | null;
     };
 
     let recipes = $state<Recipe[]>([]);
@@ -80,6 +81,7 @@
                         <div class="recipe-meta">
                             {#if recipe.time}<span>⏱ {recipe.time} Min.</span>{/if}
                             {#if recipe.difficulty}<span>💪 {recipe.difficulty}/5</span>{/if}
+                            {#if recipe.is_public != null}<span>{recipe.is_public ? '🌍 Öffentlich' : '🔒 Privat'}</span>{/if}
                         </div>
                         <button class="delete-btn" onclick={(e) => handleDelete(recipe.id, e)}>
                             🗑️ Löschen

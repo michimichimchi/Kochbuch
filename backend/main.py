@@ -74,14 +74,19 @@ def seed_database():
     # Beispielrezepte anlegen
     recipes = [
         Recipe(title="Tomatensuppe", category_id=starter, time=10, difficulty=1,
+               image="https://images.unsplash.com/photo-1547592166-23ac45744acd?q=80&w=1471&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
                paragraph="Klassische Tomatensuppe mit frischen Kräutern."),
         Recipe(title="Gurkensalat", category_id=starter, time=20, difficulty=2,
+               image = "https://plus.unsplash.com/premium_photo-1701870910794-f2ed7f50a088?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
                paragraph="Frischer Gurkensalat."),
         Recipe(title="Spaghetti Bolognese", category_id=main_dish, time=45, difficulty=2,
+               image = "https://images.unsplash.com/photo-1622973536968-3ead9e780960?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
                paragraph="Italienische Pasta mit Hackfleisch-Tomatensoße."),
         Recipe(title="Pizza Salami", category_id=main_dish, time=30, difficulty=1,
+               image = "https://images.unsplash.com/photo-1564128442383-9201fcc740eb?q=80&w=1531&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
                paragraph="Leckere Pizza mit Salami und Mozzarella."),
         Recipe(title="Erdbeerquark", category_id=dessert, time=60, difficulty=3,
+               image = "https://images.unsplash.com/photo-1729542920554-411daacea77b?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
                paragraph="Cremiger Erdbeerquark mit frischen Erdbeeren."),
     ]
     # add_all() Rezepte werden im Arbeitsspeicher vorgemerkt
@@ -273,7 +278,7 @@ from sqlalchemy import or_
 
 @app.get("/recipes", response_model=List[schemas.RecipeResponse])
 def get_recipes(search: str = None, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    query = db.query(models.Recipe)
+    query = db.query(models.Recipe).filter(models.Recipe.is_public == True)  # Nur öffentliche Rezepte anzeigen
     if search:
         # Suche im Titel (case-insensitive)
         query = query.filter(models.Recipe.title.ilike(f"%{search}%"))

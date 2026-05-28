@@ -10,6 +10,7 @@
     let difficulty = $state(1);
     let paragraph = $state("");
     let image = $state("");
+    let is_public = $state(true); // Neu: Öffentlichkeit des Rezepts
     let errorMsg = $state("");
 
     // Dynamische Liste für die Zutaten
@@ -56,6 +57,7 @@
             difficulty: Number(difficulty),
             paragraph: paragraph.trim() || null,
             image: image.trim() || null,
+            is_public,
             ingredients: validIngredients
         };
 
@@ -96,13 +98,23 @@
             <input type="text" bind:value={title} required placeholder="z. B. Spaghetti Bolognese" />
         </div>
 
-        <div class="form-group">
-            <label>Kategorie *</label>
-            <select bind:value={category_id}>
-                <option value={1}>Vorspeise</option>
-                <option value={2}>Hauptgericht</option>
-                <option value={3}>Dessert</option>
-            </select>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Kategorie *</label>
+                <select bind:value={category_id}>
+                    <option value={1}>Vorspeise</option>
+                    <option value={2}>Hauptgericht</option>
+                    <option value={3}>Dessert</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Öffentlichkeit</label>
+                <select bind:value={is_public}>
+                    <option value={true}>Öffentlich</option>
+                    <option value={false}>Privat</option>
+                </select>
+            </div>
         </div>
 
         <div class="form-row">
@@ -117,7 +129,7 @@
         </div>
 
         <div class="form-group">
-            <label>Bild URL</label>
+            <label for="image">Bild URL</label>
             <input type="url" bind:value={image} placeholder="http://..." />
         </div>
 
@@ -126,7 +138,7 @@
             {#each ingredients as ingredient, index}
                 <div class="ingredient-row">
                     <input type="text" bind:value={ingredient.name} placeholder="Name (z.B. Mehl)" required />
-                    <input type="number" bind:value={ingredient.amount} placeholder="Menge" class="small-input" />
+                    <input type="number" bind:value={ingredient.amount} placeholder="Menge" class="small-input" min="1" />
                     <input type="text" bind:value={ingredient.unit} placeholder="Einheit (z.B. g)" class="small-input" />
                     {#if ingredients.length > 1}
                         <button type="button" class="remove-btn" onclick={() => removeIngredient(index)}>✖</button>

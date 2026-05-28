@@ -266,4 +266,17 @@
     .error {
         color: #b00020;
     }
+
+    ul {
+    list-style: none;
+    padding: 1;
+    margin: 0.2rem 0;
+    display: grid;
+    grid-template-columns: max-content auto;
+    gap: 0.2rem 1rem;
+    }
+
+    li {
+    display: contents;
+        }
 </style>
