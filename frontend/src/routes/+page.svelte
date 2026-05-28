@@ -66,8 +66,6 @@
 			<div class="category-card">Vorspeisen</div>
 			<div class="category-card">Hauptgerichte</div>
 			<div class="category-card">Desserts</div>
-			<div class="category-card">Snacks</div>
-			<div class="category-card">Getränke</div>
 		</div>
 	</section>
 
