@@ -419,6 +419,77 @@ def delete_recipe(
 
     return None
 
+@app.put("/recipes/{recipe_id}", response_model=schemas.RecipeResponse)
+def update_recipe(
+    recipe_id: int,
+    recipe_data: schemas.RecipeCreate,
+    db: Session = Depends(get_db),
+    current_username: str = Depends(get_current_user)
+):
+    # 1. Benutzer ermitteln
+    user = db.query(models.User).filter(models.User.username == current_username).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+
+    # 2. Rezept suchen
+    recipe = db.query(models.Recipe).filter(models.Recipe.id == recipe_id).first()
+    if recipe is None:
+        raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+
+    # 3. Berechtigung prüfen (Ist der Nutzer der Ersteller?)
+    ownership = db.query(models.RecipeUser).filter(
+        models.RecipeUser.recipe_id == recipe_id,
+        models.RecipeUser.user_id == user.id,
+        models.RecipeUser.usage == "creator"
+    ).first()
+
+    if ownership is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Du bist nicht berechtigt, dieses Rezept zu bearbeiten"
+        )
+
+    # 4. Basisdaten aktualisieren
+    recipe.title = recipe_data.title
+    recipe.category_id = recipe_data.category_id
+    recipe.time = recipe_data.time
+    recipe.difficulty = recipe_data.difficulty
+    recipe.paragraph = recipe_data.paragraph
+    recipe.image = recipe_data.image
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Rezepttitel existiert bereits")
+
+    # 5. Zutaten aktualisieren (Alte Beziehungen löschen, neue hinzufügen)
+    db.query(models.RecipeGrocery).filter(models.RecipeGrocery.recipe_id == recipe_id).delete()
+
+    for ingredient in recipe_data.ingredients:
+        grocery = db.query(models.Grocery).filter(
+            models.Grocery.name == ingredient.name
+        ).first()
+
+        if grocery is None:
+            grocery = models.Grocery(name=ingredient.name)
+            db.add(grocery)
+            db.commit()
+            db.refresh(grocery)
+
+        recipe_grocery = models.RecipeGrocery(
+            recipe_id=recipe.id,
+            grocery_id=grocery.id,
+            amount=ingredient.amount,
+            unit=ingredient.unit
+        )
+        db.add(recipe_grocery)
+
+    db.commit()
+    db.refresh(recipe)
+
+    return recipe
+
 @app.get("/recipes/{recipe_id}/evaluations")
 def get_evaluations(
     recipe_id: int,
