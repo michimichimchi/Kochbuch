@@ -177,10 +177,27 @@ def create_recipe(
 
     return new_recipe
 
-@app.get("/evaluations", response_model=List[schemas.EvaluationResponse])
-def get_evaluations(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return db.query(models.Evaluation).offset(skip).limit(limit).all()
+@app.get("/recipes/{recipe_id}/evaluations")
+def get_evaluations(
+    recipe_id: int,
+    db: Session = Depends(get_db)
+):
+    evaluations = (
+        db.query(models.Evaluation, models.User)
+        .join(models.User, models.Evaluation.user_id == models.User.id)
+        .filter(models.Evaluation.recipe_id == recipe_id)
+        .all()
+    )
 
+    return [
+        {
+            "id": evaluation.id,
+            "rating": evaluation.rating,
+            "comment": evaluation.comment,
+            "username": user.username
+        }
+        for evaluation, user in evaluations
+    ]
 
 @app.post("/evaluations", response_model=schemas.EvaluationResponse)
 def create_evaluation(

@@ -13,7 +13,15 @@
         difficulty?: number | null;
     };
 
+    type Evaluation = {
+        id: number;
+        rating: number;
+        comment: string;
+        username: string;
+    };
+
     let recipe = $state<Recipe | null>(null);
+    let evaluations = $state<Evaluation[]>([]);
     let loading = $state(true);
     let errorMsg = $state("");
 
@@ -35,6 +43,12 @@
             }
 
             recipe = await res.json();
+            const evalRes = await fetch(`${API_URL}/recipes/${recipe.id}/evaluations`);
+
+            if (evalRes.ok) {
+                evaluations = await evalRes.json();     
+            }
+
         } catch (error) {
             errorMsg = (error as Error).message;
         } finally {
@@ -134,6 +148,23 @@
                 {/if}
             {:else}
                 <p>Du musst angemeldet sein, um eine Bewertung zu schreiben.</p>
+            {/if}
+        </section>
+        <section class="evaluation">
+            <h2>Kommentare</h2>
+
+            {#if evaluations.length === 0}
+                <p>Noch keine Kommentare vorhanden.</p>
+            {:else}
+                {#each evaluations as evaluation}
+                    {#if evaluation.comment}
+                        <div class="comment-card">
+                            <strong>{evaluation.username}</strong>
+                            <span>{evaluation.rating} ⭐</span>
+                            <p>{evaluation.comment}</p>
+                        </div>
+                    {/if}
+                {/each}
             {/if}
         </section>
     {/if}
@@ -245,5 +276,20 @@
 
     .error {
         color: #b00020;
+    }
+
+    .comment-card {
+        border-top: 1px solid #e0d6c3;
+        padding: 1rem 0;
+    }
+
+    .comment-card strong {
+        display: block;
+        color: #845b2f;
+    }
+
+    .comment-card span {
+        color: #a97c50;
+        font-weight: 600;
     }
 </style>
