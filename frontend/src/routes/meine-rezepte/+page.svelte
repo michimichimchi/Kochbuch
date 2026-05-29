@@ -52,6 +52,12 @@
             alert((error as Error).message);
         }
     }
+
+    function handleEdit(recipeId: number, event: Event) {
+        event.preventDefault();
+        event.stopPropagation(); // Verhindert, dass die Rezept-Karte angeklickt wird
+        goto(`/rezepte/${recipeId}/bearbeiten`);
+    }
 </script>
 
 <main class="container">
@@ -83,6 +89,9 @@
                             {#if recipe.difficulty}<span>💪 {recipe.difficulty}/5</span>{/if}
                             {#if recipe.is_public != null}<span>{recipe.is_public ? '🌍 Öffentlich' : '🔒 Privat'}</span>{/if}
                         </div>
+                        <button class="edit-btn" onclick={(e) => handleEdit(recipe.id, e)}>
+                            ✏️ Bearbeiten
+                        </button>
                         <button class="delete-btn" onclick={(e) => handleDelete(recipe.id, e)}>
                             🗑️ Löschen
                         </button>
@@ -158,4 +167,22 @@
         font-weight: 600;
     }
     .btn:hover { background: #a97c50; }
+
+    .edit-btn {
+        margin-top: auto; /* Schiebt die Buttons an das untere Kartenende */
+        margin-bottom: 0.5rem; /* Erzeugt Abstand zum darunterliegenden Löschen-Button */
+        background: #f3e7d7;
+        color: #845b2f;
+        border: none;
+        border-radius: 6px;
+        padding: 0.5rem;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background 0.2s;
+        width: 100%;
+        text-align: center;
+    }
+    .edit-btn:hover { 
+        background: #e0d6c3; 
+    }
 </style>

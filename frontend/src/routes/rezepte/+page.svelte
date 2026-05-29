@@ -83,10 +83,6 @@
                                     <span>💪 {recipe.difficulty}/5</span>
                                 {/if}
                             </div>
-
-                            {#if recipe.paragraph}
-                                <p>{recipe.paragraph}</p>
-                            {/if}
                         </div>
                     </a>
                 {/each}

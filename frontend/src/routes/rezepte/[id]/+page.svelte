@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { page } from "$app/state";
-    import { isLoggedIn, fetchProtected } from "$lib/api";
+    import { isLoggedIn } from "$lib/api";
 
     type Ingredient = {
         name: string;
@@ -20,7 +20,17 @@
         ingredients: Ingredient[];
     };
 
+    type Evaluation = {
+        id: number;
+        rating?: number | null;
+        comment?: string | null;
+        username?: string;
+        user_id?: number;
+        recipe_id?: number;
+    };
+
     let recipe = $state<Recipe | null>(null);
+    let evaluations = $state<Evaluation[]>([]);
     let loading = $state(true);
     let errorMsg = $state("");
 
@@ -30,6 +40,14 @@
     let successMsg = $state("");
 
     const API_URL = "http://localhost:8000";
+
+    async function loadEvaluations(recipeId: number | string) {
+        const evalRes = await fetch(`${API_URL}/recipes/${recipeId}/evaluations`);
+
+        if (evalRes.ok) {
+            evaluations = await evalRes.json();
+        }
+    }
 
     onMount(async () => {
         loggedIn = isLoggedIn();
@@ -42,6 +60,7 @@
             }
 
             recipe = await res.json();
+            await loadEvaluations(page.params.id);
         } catch (error) {
             errorMsg = (error as Error).message;
         } finally {
@@ -55,12 +74,26 @@
 
         if (!recipe) return;
 
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            errorMsg = "Du bist nicht eingeloggt.";
+            return;
+        }
+
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            errorMsg = "Du bist nicht eingeloggt.";
+            return;
+        }
+
         try {
-            // Nur noch "/evaluations" - den Rest macht die api.ts!
-            await fetchProtected("/evaluations", {
+            const res = await fetch(`${API_URL}/evaluations`, {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
                 },
                 body: JSON.stringify({
                     recipe_id: recipe.id,
@@ -69,9 +102,16 @@
                 })
             });
 
+            if (!res.ok) {
+                const data = await res.json().catch(() => null);
+                throw new Error(data?.detail ?? "Bewertung konnte nicht gespeichert werden");
+            }
+
             successMsg = "Bewertung gespeichert.";
             comment = "";
             rating = 5;
+
+            await loadEvaluations(recipe.id);
         } catch (error) {
             errorMsg = (error as Error).message;
         }
@@ -106,20 +146,19 @@
                     {#if recipe.difficulty}
                         <span>💪 Schwierigkeit {recipe.difficulty}/5</span>
                     {/if}
+                </div>
 
+                {#if recipe.ingredients?.length}
                     <ul>
                         {#each recipe.ingredients as ingredient}
                             <li>
-                                <span class="amount">
-                                    {#if ingredient.amount}{ingredient.amount}{/if} 
-                                    {#if ingredient.unit}{ingredient.unit}{/if}
-                                </span>
-                                <span class="name">{ingredient.name}</span>
+                                {#if ingredient.amount}{ingredient.amount}{/if}
+                                {#if ingredient.unit} {ingredient.unit}{/if}
+                                {ingredient.name}
                             </li>
                         {/each}
                     </ul>
-
-                </div>
+                {/if}
 
                 {#if recipe.paragraph}
                     <p>{recipe.paragraph}</p>
@@ -158,6 +197,28 @@
                 {/if}
             {:else}
                 <p>Du musst angemeldet sein, um eine Bewertung zu schreiben.</p>
+            {/if}
+        </section>
+
+        <section class="evaluation">
+            <h2>Kommentare</h2>
+
+            {#if evaluations.length === 0}
+                <p>Noch keine Kommentare vorhanden.</p>
+            {:else}
+                {#each evaluations as evaluation}
+                    <div class="comment-card">
+                        <strong>{evaluation.username ?? `User ${evaluation.user_id}`}</strong>
+
+                        {#if evaluation.rating}
+                            <div>{evaluation.rating} ⭐</div>
+                        {/if}
+
+                        {#if evaluation.comment}
+                            <p>{evaluation.comment}</p>
+                        {/if}
+                    </div>
+                {/each}
             {/if}
         </section>
     {/if}
@@ -271,16 +332,14 @@
         color: #b00020;
     }
 
-    ul {
-    list-style: none;
-    padding: 1;
-    margin: 0.2rem 0;
-    display: grid;
-    grid-template-columns: max-content auto;
-    gap: 0.2rem 1rem;
+    .comment-card {
+        padding: 1rem 0;
+        border-bottom: 1px solid #eee;
     }
 
-    li {
-    display: contents;
-        }
+    .comment-card strong {
+        display: block;
+        margin-bottom: 0.25rem;
+        color: #845b2f;
+    }
 </style>
