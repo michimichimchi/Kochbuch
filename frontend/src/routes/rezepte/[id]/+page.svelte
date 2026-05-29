@@ -3,6 +3,12 @@
     import { page } from "$app/state";
     import { isLoggedIn, fetchProtected } from "$lib/api";
 
+    type Ingredient = {
+        name: string;
+        amount?: number | null;
+        unit?: string | null;
+    };
+
     type Recipe = {
         id: number;
         category_id: number;
@@ -11,6 +17,7 @@
         paragraph?: string | null;
         image?: string | null;
         difficulty?: number | null;
+        ingredients: Ingredient[];
     };
 
     type Evaluation = {
@@ -63,8 +70,12 @@
         if (!recipe) return;
 
         try {
+            // Nur noch "/evaluations" - den Rest macht die api.ts!
             await fetchProtected("/evaluations", {
                 method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
                 body: JSON.stringify({
                     recipe_id: recipe.id,
                     rating,
@@ -109,6 +120,19 @@
                     {#if recipe.difficulty}
                         <span>💪 Schwierigkeit {recipe.difficulty}/5</span>
                     {/if}
+
+                    <ul>
+                        {#each recipe.ingredients as ingredient}
+                            <li>
+                                <span class="amount">
+                                    {#if ingredient.amount}{ingredient.amount}{/if} 
+                                    {#if ingredient.unit}{ingredient.unit}{/if}
+                                </span>
+                                <span class="name">{ingredient.name}</span>
+                            </li>
+                        {/each}
+                    </ul>
+
                 </div>
 
                 {#if recipe.paragraph}
@@ -137,7 +161,7 @@
                     <textarea bind:value={comment} placeholder="Dein Kommentar"></textarea>
                 </label>
 
-                <button onclick={submitEvaluation}>Absenden</button>
+                <button type="button" onclick={submitEvaluation}>Absenden</button>
 
                 {#if successMsg}
                     <p class="success">{successMsg}</p>
@@ -292,4 +316,17 @@
         color: #a97c50;
         font-weight: 600;
     }
+
+    ul {
+    list-style: none;
+    padding: 1;
+    margin: 0.2rem 0;
+    display: grid;
+    grid-template-columns: max-content auto;
+    gap: 0.2rem 1rem;
+    }
+
+    li {
+    display: contents;
+        }
 </style>

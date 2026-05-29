@@ -1,5 +1,6 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    // 'page' importieren, um die URL auslesen zu können
+    import { page } from '$app/stores';
 
     type Recipe = {
         id: number;
@@ -11,13 +12,27 @@
         difficulty?: number | null;
     };
 
+    // Suchbegriff aus der URL (?q=Pizza) abfangen
+    let searchQuery = $derived($page.url.searchParams.get('q') || "");
+
     let recipes = $state<Recipe[]>([]);
     let loading = $state(true);
     let errorMsg = $state("");
 
-    onMount(async () => {
+    // $effect reagiert automatisch auf Änderungen des Suchbegriffs
+    $effect(() => {
+        ladeRezepte(searchQuery);
+    });
+
+    async function ladeRezepte(query: string) {
+        loading = true;
+        errorMsg = "";
         try {
-            const response = await fetch("http://localhost:8000/recipes");
+            // Den Filter-Zusatz für das Backend zusammenbauen
+            const q = query ? `?search=${encodeURIComponent(query)}` : "";
+            
+            // Anfrage an das Backend schicken (mit oder ohne Suchbegriff)
+            const response = await fetch(`http://localhost:8000/recipes${q}`);
 
             if (!response.ok) {
                 throw new Error("Rezepte konnten nicht geladen werden");
@@ -29,7 +44,7 @@
         } finally {
             loading = false;
         }
-    });
+    }
 
     function hasValidImage(image?: string | null) {
         return image && image.startsWith("http");
