@@ -56,8 +56,12 @@
         if (!recipe) return;
 
         try {
+            // Nur noch "/evaluations" - den Rest macht die api.ts!
             await fetchProtected("/evaluations", {
                 method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
                 body: JSON.stringify({
                     recipe_id: recipe.id,
                     rating,
@@ -143,7 +147,7 @@
                     <textarea bind:value={comment} placeholder="Dein Kommentar"></textarea>
                 </label>
 
-                <button onclick={submitEvaluation}>Absenden</button>
+                <button type="button" onclick={submitEvaluation}>Absenden</button>
 
                 {#if successMsg}
                     <p class="success">{successMsg}</p>
