@@ -217,7 +217,7 @@
                     <textarea bind:value={comment} placeholder="Dein Kommentar"></textarea>
                 </label>
 
-                <button onclick={submitEvaluation}>Absenden</button>
+                <button type="button" onclick={submitEvaluation}>Absenden</button>
 
                 {#if successMsg}
                     <p class="success">{successMsg}</p>
@@ -376,17 +376,17 @@
 
 
     ul {
-    list-style: none;
-    padding: 1;
-    margin: 0.2rem 0;
-    display: grid;
-    grid-template-columns: max-content auto;
-    gap: 0.2rem 1rem;
+        list-style: none;
+        padding: 0;
+        margin: 0.2rem 0;
+        display: grid;
+        grid-template-columns: max-content auto;
+        gap: 0.2rem 1rem;
     }
 
     li {
-    display: contents;
-        }
+        display: contents;
+    }
 
     .comment-card {
         padding: 1rem 0;
@@ -400,29 +400,29 @@
     }
 
     .fav-btn {
-    position: absolute;
-    top: 1.5rem;
-    right: 1.5rem;
-    background: #f3e7d7;
-    color: #845b2f;
-    border: none;
-    border-radius: 8px;
-    padding: 0.5rem 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    margin-bottom: 1rem;
-    transition: background 0.2s;
+        position: absolute;
+        top: 1.5rem;
+        right: 1.5rem;
+        background: #f3e7d7;
+        color: #845b2f;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
     }
 
     .fav-btn:hover {
-    background: #e0d6c3;
+        background: #e0d6c3;
     }
 
     .fav-btn.active {
-    background: #d4edda;
-    color: #1a6b2f;
+        background: #d4edda;
+        color: #1a6b2f;
     }
+
     .fav-btn.active:hover {
-    background: #b8dfc4;
+        background: #b8dfc4;
     }
 </style>
