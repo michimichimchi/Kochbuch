@@ -45,30 +45,21 @@ export async function login(username: string, password: string): Promise<void> {
  * Führt einen authentifizierten GET-Request aus.
  * Hängt den Bearer-Token aus dem localStorage als Authorization-Header an.
  */
-export async function fetchProtected<T>(path: string, options: RequestInit = {}): Promise<T> {
-    const token = getToken();                                          
-    if (!token) throw new Error("Nicht eingeloggt");                     
-
-    const res = await fetch(`${API_BASE}${path}`, {                      
-        ...options, // <--- Packt method: "POST", body etc. aus
-        headers: { 
-            ...options.headers, // <--- Übernimmt z.B. unseren Content-Type
-            Authorization: `Bearer ${token}` 
-        }                    
-    });
-
-    if (res.status === 401) {                                            
-        logout();
-        throw new Error("Nicht autorisiert");
-    }
-
-    if (!res.ok) {
-        const err: any = new Error("Fehler beim Abrufen der geschützten Daten");
-        err.status = res.status;   
-        throw err;
-    }
-
-    return res.json();                                                   
+export async function fetchProtected<T>(path: string): Promise<T> {
+	// TODO: Implementiert diese Funktion
+	// Hinweis: getToken() für den Token, Authorization: `Bearer ${token}` als Header
+	//          Bei 401: logout() aufrufen und Fehler werfen
+	const token = getToken();                                            // Token aus localStorage holen, ist entweder ein String oder null, wenn kein Token gespeichert ist
+	if (!token) throw new Error("Nicht eingeloggt");                     // Fehler werfen, wenn kein Token vorhanden ist, da die Anfrage sonst nicht autorisiert wäre
+	const res = await fetch(`${API_BASE}${path}`, { 				     // URL für die geschützte Ressource, z.B. http://localhost:8000/protected-data
+		headers: { Authorization: `Bearer ${token}` }                    // Authorization-Header mit Bearer-Token, damit das Backend die Anfrage als authentifiziert erkennt
+	});
+	if (res.status === 401) {                                            // Wenn die Antwort Statuscode 401 Unauthorized hat, ist Token ungültig oder abgelaufen. Token wird gelöscht, Nutzer ausgeloogt und Fehler geworfen, damit er sich erneut anmelden muss.
+		logout();
+		throw new Error("Nicht autorisiert");
+	}
+	if (!res.ok) throw new Error("Fehler beim Abrufen der geschützten Daten");   // Fehlerbehandlung für andere Fehlercodes, z.B. 500 Serverfehler
+	return res.json();                                                           // Antwort als JSON parsen und zurückgeben, erwartet wird die geschützte Ressource, z.B. ein Array von Daten oder ein Objekt mit Informationen, abhängig von der angeforderten Route
 }
 
 /**

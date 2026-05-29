@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, CheckConstraint, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, CheckConstraint, ForeignKey
 from database import Base
 
 class User(Base):
@@ -20,7 +20,6 @@ class Recipe(Base):
     paragraph = Column(String(5000))
     image = Column(String(200))
     difficulty = Column(Integer, CheckConstraint("difficulty >= 1 AND difficulty <= 5"))
-    is_public = Column(Boolean, default=True)
 
 class RecipeGrocery(Base):
     __tablename__ = "recipe_grocery"

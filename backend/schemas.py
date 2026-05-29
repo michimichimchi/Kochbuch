@@ -39,12 +39,10 @@ class RecipeBase(BaseModel):
 
 class RecipeCreate(RecipeBase):
     ingredients: List[RecipeIngredientCreate] = []
-    is_public: Optional[bool] = True
 
 
 class RecipeResponse(RecipeBase):
     id: int
-    is_public: Optional[bool] = True
 
     class Config:
         from_attributes = True

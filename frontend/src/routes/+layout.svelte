@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { goto } from '$app/navigation';
     import { logout, isLoggedIn, fetchProtected } from '$lib/api';
 
     let loggedIn = $state(false);
@@ -12,15 +13,19 @@
         if (loggedIn) {
             try {
                 profile = await fetchProtected("/my-profile");
-            } catch (error){
-                const status = (error as any).status;
-                if (status === 401 || status === 404) {   // Token ungültig oder Profil nicht gefunden, daher Logout
-                    logout();
+            } catch {
                 loggedIn = false;
-                }
             }
         }
     });
+
+    function handleLogout() {
+        logout();
+        loggedIn = false;
+        profile = null;
+        sidebarOpen = false;
+        window.location.reload();
+    }
 </script>
 
 
@@ -33,12 +38,28 @@
         {#if loggedIn}
             <li><a href="/meine-rezepte" class="nav-link">Meine Rezepte</a></li>
             <li><a href="/rezept-neu" class="nav-link">Neues Rezept ✚</a></li>
-            <li><a href="/profil" class="nav-link">Mein Profil</a></li>
-        {:else}
-            <li><a href="/login" class="nav-link">Anmelden</a></li>
+            <li><a href="/meal-prep" class="nav-link">Meal Prep</a></li>
         {/if}
     </ul>
 </nav>
+
+<!-- Profil-Button oben rechts -->
+{#if loggedIn}
+    <button class="profile-btn" onclick={() => sidebarOpen = !sidebarOpen}>
+        Profil
+    </button>
+
+    <!-- Profil-Sidebar (rechts) -->
+    {#if sidebarOpen}
+        <aside class="sidebar">
+            <h3>Mein Profil</h3>
+            <p><strong>Benutzername:</strong> {profile?.username}</p>
+            <p><strong>Email:</strong> {profile?.email}</p>
+            <button class="logout-btn" onclick={handleLogout}>Logout</button>
+        </aside>
+    {/if}
+{/if}
+
 
 <!-- Hauptinhalt, mit Abstand zur Sidebar -->
 <div class="main-content">
@@ -99,4 +120,42 @@
         background: #f8f5f0;
     }
 
+    /* Profil-Button oben rechts */
+    .profile-btn {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        background-color: transparent;
+        color: rgb(132, 91, 47);
+        border: 2px solid rgb(132, 91, 47);
+        border-radius: 8px;
+        padding: 0.5rem 1.2rem;
+        font-size: 1rem;
+        cursor: pointer;
+        z-index: 100;
+    }
+
+    /* Profil-Sidebar (rechts) */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 260px;
+        height: 100%;
+        background: white;
+        box-shadow: -2px 0 8px rgba(0,0,0,0.15);
+        padding: 2rem 1.5rem;
+        z-index: 99;
+    }
+
+    /* Logout-Button in der Sidebar */
+    .logout-btn {
+        margin-top: 1rem;
+        padding: 0.4rem 1rem;
+        background-color: #e53935;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+    }
 </style>
