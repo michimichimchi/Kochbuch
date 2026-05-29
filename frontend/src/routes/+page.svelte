@@ -237,19 +237,4 @@
 		font-size: 1.1rem;
 	}
 
-	/* Aussehen des Anmelde-Buttons oben rechts */
-	.auth-btn {
-		position: fixed;
-		top: 1rem;
-		right: 1rem;
-		background-color: #fff;
-		color: rgb(132, 91, 47);
-		border: 2px solid rgb(132, 91, 47);
-		border-radius: 8px;
-		padding: 0.5rem 1.2rem;
-		font-size: 1rem;
-		cursor: pointer;
-		z-index: 10;
-		text-decoration: none;
-	}
 </style>

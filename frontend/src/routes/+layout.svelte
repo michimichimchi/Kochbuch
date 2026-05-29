@@ -33,6 +33,7 @@
         {#if loggedIn}
             <li><a href="/meine-rezepte" class="nav-link">Meine Rezepte</a></li>
             <li><a href="/rezept-neu" class="nav-link">Neues Rezept ✚</a></li>
+            <li><a href="/favoriten" class="nav-link">Favoriten 🤎</a></li>
             <li><a href="/profil" class="nav-link">Mein Profil</a></li>
         {:else}
             <li><a href="/login" class="nav-link">Anmelden</a></li>

@@ -322,7 +322,8 @@ def get_recipe(recipe_id: int, db: Session = Depends(get_db)):
         "difficulty": recipe.difficulty,
         "paragraph": recipe.paragraph,
         "image": recipe.image,
-        "ingredients": ingredients_list
+        "ingredients": ingredients_list,
+        "is_public": recipe.is_public
     }
 
 @app.post("/recipes", response_model=schemas.RecipeResponse)
@@ -424,10 +425,98 @@ def delete_recipe(
 
     return None
 
-@app.get("/evaluations", response_model=List[schemas.EvaluationResponse])
-def get_evaluations(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return db.query(models.Evaluation).offset(skip).limit(limit).all()
+@app.put("/recipes/{recipe_id}", response_model=schemas.RecipeResponse)
+def update_recipe(
+    recipe_id: int,
+    recipe_data: schemas.RecipeCreate,
+    db: Session = Depends(get_db),
+    current_username: str = Depends(get_current_user)
+):
+    # 1. Benutzer ermitteln
+    user = db.query(models.User).filter(models.User.username == current_username).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
 
+    # 2. Rezept suchen
+    recipe = db.query(models.Recipe).filter(models.Recipe.id == recipe_id).first()
+    if recipe is None:
+        raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+
+    # 3. Berechtigung prüfen (Ist der Nutzer der Ersteller?)
+    ownership = db.query(models.RecipeUser).filter(
+        models.RecipeUser.recipe_id == recipe_id,
+        models.RecipeUser.user_id == user.id,
+        models.RecipeUser.usage == "creator"
+    ).first()
+
+    if ownership is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Du bist nicht berechtigt, dieses Rezept zu bearbeiten"
+        )
+
+    # 4. Basisdaten aktualisieren
+    recipe.title = recipe_data.title
+    recipe.category_id = recipe_data.category_id
+    recipe.time = recipe_data.time
+    recipe.difficulty = recipe_data.difficulty
+    recipe.paragraph = recipe_data.paragraph
+    recipe.image = recipe_data.image
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Rezepttitel existiert bereits")
+
+    # 5. Zutaten aktualisieren (Alte Beziehungen löschen, neue hinzufügen)
+    db.query(models.RecipeGrocery).filter(models.RecipeGrocery.recipe_id == recipe_id).delete()
+
+    for ingredient in recipe_data.ingredients:
+        grocery = db.query(models.Grocery).filter(
+            models.Grocery.name == ingredient.name
+        ).first()
+
+        if grocery is None:
+            grocery = models.Grocery(name=ingredient.name)
+            db.add(grocery)
+            db.commit()
+            db.refresh(grocery)
+
+        recipe_grocery = models.RecipeGrocery(
+            recipe_id=recipe.id,
+            grocery_id=grocery.id,
+            amount=ingredient.amount,
+            unit=ingredient.unit
+        )
+        db.add(recipe_grocery)
+
+    db.commit()
+    db.refresh(recipe)
+
+    return recipe
+
+@app.get("/recipes/{recipe_id}/evaluations")
+def get_evaluations(
+    recipe_id: int,
+    db: Session = Depends(get_db)
+):
+    evaluations = (
+        db.query(models.Evaluation, models.User)
+        .join(models.User, models.Evaluation.user_id == models.User.id)
+        .filter(models.Evaluation.recipe_id == recipe_id)
+        .all()
+    )
+
+    return [
+        {
+            "id": evaluation.id,
+            "rating": evaluation.rating,
+            "comment": evaluation.comment,
+            "username": user.username
+        }
+        for evaluation, user in evaluations
+    ]
 
 @app.post("/evaluations", response_model=schemas.EvaluationResponse)
 def create_evaluation(
@@ -458,6 +547,68 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Favoriten-Endpunkte, damit alle Favoriten in der Listen angezeigt werden
+@app.get("/favorites")
+def get_favorites(db: Session = Depends(get_db), current_username: str = Depends(get_current_user)):
+    user = db.query(User).filter(User.username == current_username).first()
+    favorite_entries = db.query(models.RecipeUser).filter(
+        models.RecipeUser.user_id == user.id,
+        models.RecipeUser.usage == "favorite"
+    ).all()
+    recipe_ids = [e.recipe_id for e in favorite_entries]
+    recipes = db.query(models.Recipe).filter(models.Recipe.id.in_(recipe_ids)).all()
+    return [
+        {
+            "id": r.id,
+            "title": r.title,
+            "time": r.time,
+            "difficulty": r.difficulty,
+            "image": r.image,
+            "is_public": r.is_public,
+        }
+        for r in recipes
+    ]
+
+# Prüfen, ob Favorit bereits existiert
+@app.get("/favorites/{recipe_id}")
+def check_favorite(recipe_id: int, db: Session = Depends(get_db), current_username: str = Depends(get_current_user)):
+    user = db.query(User).filter(User.username == current_username).first()
+    existing = db.query(models.RecipeUser).filter(
+        models.RecipeUser.user_id == user.id,
+        models.RecipeUser.recipe_id == recipe_id,
+        models.RecipeUser.usage == "favorite"
+    ).first()
+    return {"is_favorite": existing is not None}
+
+# Favorit hinzufügen
+@app.post("/favorites/{recipe_id}", status_code=status.HTTP_201_CREATED)
+def add_favorite(recipe_id: int, db: Session = Depends(get_db), current_username: str = Depends(get_current_user)):
+    user = db.query(User).filter(User.username == current_username).first()
+    existing = db.query(models.RecipeUser).filter(
+        models.RecipeUser.user_id == user.id,
+        models.RecipeUser.recipe_id == recipe_id,
+        models.RecipeUser.usage == "favorite"
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Rezept ist bereits als Favorit markiert")
+    db.add(models.RecipeUser(user_id=user.id, recipe_id=recipe_id, usage="favorite"))
+    db.commit()
+    return {"ok": True}
+
+# Favorit entfernen
+@app.delete("/favorites/{recipe_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_favorite(recipe_id: int, db: Session = Depends(get_db), current_username: str = Depends(get_current_user)):
+    user = db.query(User).filter(User.username == current_username).first()
+    fav = db.query(models.RecipeUser).filter(
+        models.RecipeUser.user_id == user.id,
+        models.RecipeUser.recipe_id == recipe_id,
+        models.RecipeUser.usage == "favorite"
+    ).first()
+    if not fav:
+        raise HTTPException(status_code=404, detail="Favorit nicht gefunden")
+    db.delete(fav)
+    db.commit()
 
 # Beispiel:
 # @app.get("/items")

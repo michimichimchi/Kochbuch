@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
-    import { fetchProtected, isLoggedIn } from '$lib/api';
+    import { isLoggedIn } from '$lib/api';
 
     type Recipe = {
         id: number;
@@ -11,6 +11,8 @@
         difficulty?: number | null;
         is_public?: boolean | null;
     };
+
+    const API_URL = "http://localhost:8000";
 
     let recipes = $state<Recipe[]>([]);
     let loading = $state(true);
@@ -23,8 +25,12 @@
         }
 
         try {
-            // Holt die Rezepte des aktuell eingeloggten Nutzers
-            recipes = await fetchProtected<Recipe[]>('/recipes/me');
+            const token = localStorage.getItem("token");
+            const res = await fetch(`${API_URL}/favorites`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error("Favoriten konnten nicht geladen werden");
+            recipes = await res.json();
         } catch (error) {
             errorMsg = (error as Error).message;
         } finally {
@@ -32,46 +38,36 @@
         }
     });
 
-    async function handleDelete(id: number, event: Event) {
-        event.preventDefault(); // Verhindert, dass der Link zur Detailseite ausgelöst wird
-        
-        if (!confirm("Möchtest du dieses Rezept wirklich löschen?")) return;
-
+    async function removeFavorite(id: number, event: Event) {
+        event.preventDefault();
+        if (!confirm("Möchtest du dieses Rezept wirklich aus deinen Favoriten entfernen?")) return;
         const token = localStorage.getItem("token");
         try {
-            const res = await fetch(`http://localhost:8000/recipes/${id}`, {
+            const res = await fetch(`${API_URL}/favorites/${id}`, {
                 method: "DELETE",
-                headers: { "Authorization": `Bearer ${token}` }
+                headers: { Authorization: `Bearer ${token}` }
             });
-
-            if (!res.ok) throw new Error("Fehler beim Löschen");
-            
-            // Rezept aus dem Frontend-Array entfernen (UI aktualisiert sich automatisch)
-            recipes = recipes.filter(r => r.id !== id);
+            if (res.ok || res.status === 204) {
+                recipes = recipes.filter(r => r.id !== id);
+            }
         } catch (error) {
             alert((error as Error).message);
         }
     }
-
-    function handleEdit(recipeId: number, event: Event) {
-        event.preventDefault();
-        event.stopPropagation(); // Verhindert, dass die Rezept-Karte angeklickt wird
-        goto(`/rezepte/${recipeId}/bearbeiten`);
-    }
 </script>
 
 <main class="container">
-    <h1>Meine Rezepte</h1>
-    <p class="subtitle">Hier findest du alle von dir erstellten Kochrezepte.</p>
+    <h1>Meine Favoriten</h1>
+    <p class="subtitle">Hier findest du alle von dir als Favoriten markierten Rezepte.</p>
 
     {#if loading}
-        <p class="info">Rezepte werden geladen...</p>
+        <p class="info">Favoriten werden geladen...</p>
     {:else if errorMsg}
         <p class="error">Fehler beim Laden: {errorMsg}</p>
     {:else if recipes.length === 0}
         <div class="empty-state">
-            <p>Du hast bisher noch keine eigenen Rezepte hinzugefügt.</p>
-            <a href="/rezept-neu" class="btn">Erstes Rezept erstellen ✚</a>
+            <p>Du hast bisher noch keine Favoriten hinzugefügt.</p>
+            <a href="/rezepte" class="btn">Rezepte entdecken</a>
         </div>
     {:else}
         <div class="recipe-list">
@@ -87,13 +83,9 @@
                         <div class="recipe-meta">
                             {#if recipe.time}<span>⏱ {recipe.time} Min.</span>{/if}
                             {#if recipe.difficulty}<span>💪 {recipe.difficulty}/5</span>{/if}
-                            {#if recipe.is_public != null}<span>{recipe.is_public ? '🌍 Öffentlich' : '🔒 Privat'}</span>{/if}
                         </div>
-                        <button class="edit-btn" onclick={(e) => handleEdit(recipe.id, e)}>
-                            ✏️ Bearbeiten
-                        </button>
-                        <button class="delete-btn" onclick={(e) => handleDelete(recipe.id, e)}>
-                            🗑️ Löschen
+                        <button class="remove-btn" onclick={(e) => removeFavorite(recipe.id, e)}>
+                            🗑️ Aus Favoriten entfernen
                         </button>
                     </div>
                 </a>
@@ -124,9 +116,7 @@
         display: flex;
         flex-direction: column;
     }
-    .recipe-card:hover {
-        box-shadow: 0 4px 16px rgba(132,91,47,0.12);
-    }
+    .recipe-card:hover { box-shadow: 0 4px 16px rgba(132,91,47,0.12); }
     img, .image-placeholder { width: 100%; height: 140px; object-fit: cover; }
     .image-placeholder {
         background: #f3e7d7;
@@ -137,9 +127,8 @@
     }
     .recipe-content { padding: 1rem; display: flex; flex-direction: column; flex-grow: 1; }
     .recipe-title { color: #845b2f; font-weight: 600; font-size: 1.1rem; margin-bottom: 0.5rem; }
-    .recipe-meta { display: flex; gap: 0.8rem; color: #a97c50; font-size: 0.9rem; margin-bottom: 1rem; }
-    
-    .delete-btn {
+    .recipe-meta { display: flex; gap: 0.8rem; color: #a97c50; font-size: 0.9rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .remove-btn {
         margin-top: auto;
         background: #ffe6e6;
         color: #b00020;
@@ -151,8 +140,7 @@
         transition: background 0.2s;
         width: 100%;
     }
-    .delete-btn:hover { background: #ffcccc; }
-
+    .remove-btn:hover { background: #ffcccc; }
     .info { color: #845b2f; }
     .error { color: #b00020; background: #ffe6e6; padding: 1rem; border-radius: 8px; }
     .empty-state { text-align: center; padding: 3rem; background: #fff; border-radius: 16px; color: #845b2f; }
@@ -167,22 +155,4 @@
         font-weight: 600;
     }
     .btn:hover { background: #a97c50; }
-
-    .edit-btn {
-        margin-top: auto; /* Schiebt die Buttons an das untere Kartenende */
-        margin-bottom: 0.5rem; /* Erzeugt Abstand zum darunterliegenden Löschen-Button */
-        background: #f3e7d7;
-        color: #845b2f;
-        border: none;
-        border-radius: 6px;
-        padding: 0.5rem;
-        cursor: pointer;
-        font-weight: 600;
-        transition: background 0.2s;
-        width: 100%;
-        text-align: center;
-    }
-    .edit-btn:hover { 
-        background: #e0d6c3; 
-    }
 </style>

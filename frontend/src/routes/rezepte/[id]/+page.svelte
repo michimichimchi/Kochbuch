@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { page } from "$app/state";
-    import { isLoggedIn, fetchProtected } from "$lib/api";
+    import { isLoggedIn } from "$lib/api";
 
     type Ingredient = {
         name: string;
@@ -20,7 +20,17 @@
         ingredients: Ingredient[];
     };
 
+    type Evaluation = {
+        id: number;
+        rating?: number | null;
+        comment?: string | null;
+        username?: string;
+        user_id?: number;
+        recipe_id?: number;
+    };
+
     let recipe = $state<Recipe | null>(null);
+    let evaluations = $state<Evaluation[]>([]);
     let loading = $state(true);
     let errorMsg = $state("");
 
@@ -28,8 +38,17 @@
     let rating = $state(5);
     let comment = $state("");
     let successMsg = $state("");
+    let isFavorite = $state(false);
 
     const API_URL = "http://localhost:8000";
+
+    async function loadEvaluations(recipeId: number | string) {
+        const evalRes = await fetch(`${API_URL}/recipes/${recipeId}/evaluations`);
+
+        if (evalRes.ok) {
+            evaluations = await evalRes.json();
+        }
+    }
 
     onMount(async () => {
         loggedIn = isLoggedIn();
@@ -42,6 +61,19 @@
             }
 
             recipe = await res.json();
+            await loadEvaluations(page.params.id!);
+
+            if (loggedIn) {
+                const token = localStorage.getItem("token");
+                const favRes = await fetch(`${API_URL}/favorites/${page.params.id}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (favRes.ok) {
+                    const favData = await favRes.json();
+                    isFavorite = favData.is_favorite;
+                }
+            }
+
         } catch (error) {
             errorMsg = (error as Error).message;
         } finally {
@@ -55,9 +87,20 @@
 
         if (!recipe) return;
 
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            errorMsg = "Du bist nicht eingeloggt.";
+            return;
+        }
+
         try {
-            await fetchProtected("/evaluations", {
+            const res = await fetch(`${API_URL}/evaluations`, {
                 method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
                 body: JSON.stringify({
                     recipe_id: recipe.id,
                     rating,
@@ -65,17 +108,42 @@
                 })
             });
 
+            if (!res.ok) {
+                const data = await res.json().catch(() => null);
+                throw new Error(data?.detail ?? "Bewertung konnte nicht gespeichert werden");
+            }
+
             successMsg = "Bewertung gespeichert.";
             comment = "";
             rating = 5;
+
+            await loadEvaluations(recipe.id);
         } catch (error) {
             errorMsg = (error as Error).message;
+        }
+    }
+
+    async function toggleFavorite() {
+        const token = localStorage.getItem("token");
+        if (!token || !recipe) return;
+
+        if (isFavorite && !confirm("Möchtest du dieses Rezept wirklich aus deinen Favoriten entfernen?")) return;
+
+        const method = isFavorite ? "DELETE" : "POST";
+        const res = await fetch(`${API_URL}/favorites/${recipe.id}`, {
+            method,
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+
+        if (res.ok || res.status === 204) {
+            isFavorite = !isFavorite;
         }
     }
 
     function hasValidImage(image?: string | null) {
         return image && image.startsWith("http");
     }
+
 </script>
 
 <main>
@@ -93,6 +161,11 @@
 
             <div class="content">
                 <h1>{recipe.title}</h1>
+                {#if loggedIn}
+                    <button class="fav-btn" class:active={isFavorite} onclick={toggleFavorite}>
+                        {isFavorite ? "In den Favoriten" : "Zu Favoriten hinzufügen"}
+                    </button>
+                {/if}
 
                 <div class="meta">
                     {#if recipe.time}
@@ -102,20 +175,21 @@
                     {#if recipe.difficulty}
                         <span>💪 Schwierigkeit {recipe.difficulty}/5</span>
                     {/if}
+                </div>
 
+                {#if recipe.ingredients?.length}
                     <ul>
                         {#each recipe.ingredients as ingredient}
                             <li>
                                 <span class="amount">
-                                    {#if ingredient.amount}{ingredient.amount}{/if} 
-                                    {#if ingredient.unit}{ingredient.unit}{/if}
+                                    {#if ingredient.amount}{ingredient.amount}{/if}
+                                    {#if ingredient.unit} {ingredient.unit}{/if}
                                 </span>
                                 <span class="name">{ingredient.name}</span>
                             </li>
                         {/each}
                     </ul>
-
-                </div>
+                {/if}
 
                 {#if recipe.paragraph}
                     <p>{recipe.paragraph}</p>
@@ -154,6 +228,28 @@
                 {/if}
             {:else}
                 <p>Du musst angemeldet sein, um eine Bewertung zu schreiben.</p>
+            {/if}
+        </section>
+
+        <section class="evaluation">
+            <h2>Kommentare</h2>
+
+            {#if evaluations.length === 0}
+                <p>Noch keine Kommentare vorhanden.</p>
+            {:else}
+                {#each evaluations as evaluation}
+                    <div class="comment-card">
+                        <strong>{evaluation.username ?? `User ${evaluation.user_id}`}</strong>
+
+                        {#if evaluation.rating}
+                            <div>{evaluation.rating} ⭐</div>
+                        {/if}
+
+                        {#if evaluation.comment}
+                            <p>{evaluation.comment}</p>
+                        {/if}
+                    </div>
+                {/each}
             {/if}
         </section>
     {/if}
@@ -200,12 +296,23 @@
     .evaluation,
     .box {
         padding: 1.5rem;
+        position: relative
     }
 
     h1,
     h2 {
         color: #845b2f;
         margin-top: 0;
+    }
+
+    .title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    }
+
+    .title-row h1 {
+    margin: 0;
     }
 
     .meta {
@@ -267,6 +374,7 @@
         color: #b00020;
     }
 
+
     ul {
     list-style: none;
     padding: 1;
@@ -279,4 +387,42 @@
     li {
     display: contents;
         }
+
+    .comment-card {
+        padding: 1rem 0;
+        border-bottom: 1px solid #eee;
+    }
+
+    .comment-card strong {
+        display: block;
+        margin-bottom: 0.25rem;
+        color: #845b2f;
+    }
+
+    .fav-btn {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    background: #f3e7d7;
+    color: #845b2f;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 1rem;
+    transition: background 0.2s;
+    }
+
+    .fav-btn:hover {
+    background: #e0d6c3;
+    }
+
+    .fav-btn.active {
+    background: #d4edda;
+    color: #1a6b2f;
+    }
+    .fav-btn.active:hover {
+    background: #b8dfc4;
+    }
 </style>
