@@ -1,22 +1,20 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { logout, isLoggedIn, fetchProtected } from '$lib/api';
+    import { logout, isLoggedIn, fetchProtected, loggedInStore } from '$lib/api';
 
-    let loggedIn = $state(false);
     let sidebarOpen = $state(false); // Für Profil-Sidebar rechts
     let navOpen = $state(false);     // Für Haupt-Navigation links (mobil)
     let profile = $state<{ id: number; username: string; email: string } | null>(null);
 
     onMount(async () => {
-        loggedIn = isLoggedIn();
-        if (loggedIn) {
+        loggedInStore.set(isLoggedIn());  // Beim Laden der App den Login-Zustand aus dem localStorage prüfen und im Store speichern
+        if ($loggedInStore) {
             try {
                 profile = await fetchProtected("/my-profile");
             } catch (error){
                 const status = (error as any).status;
                 if (status === 401 || status === 404) {   // Token ungültig oder Profil nicht gefunden, daher Logout
                     logout();
-                loggedIn = false;
                 }
             }
         }
@@ -30,7 +28,7 @@
     <ul>
         <li><a href="/" class="nav-link">Startseite</a></li>
         <li><a href="/rezepte" class="nav-link">Alle Rezepte</a></li>
-        {#if loggedIn}
+        {#if $loggedInStore}
             <li><a href="/meine-rezepte" class="nav-link">Meine Rezepte</a></li>
             <li><a href="/rezept-neu" class="nav-link">Neues Rezept ✚</a></li>
             <li><a href="/favoriten" class="nav-link">Favoriten 🤎</a></li>

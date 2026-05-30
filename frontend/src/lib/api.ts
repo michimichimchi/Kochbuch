@@ -1,3 +1,6 @@
+import { writable } from 'svelte/store';
+export const loggedInStore = writable(false);
+
 /** Basis-URL des FastAPI-Backends */
 const API_BASE = 'http://localhost:8000';
 
@@ -14,6 +17,7 @@ function saveToken(token: string): void {
 /** Hilfsfunktion: löscht den JWT (Logout) */
 export function logout(): void {
 	localStorage.removeItem('token');
+	loggedInStore.set(false);
 }
 
 /** Gibt true zurück, wenn ein Token gespeichert ist */
@@ -39,6 +43,7 @@ export async function login(username: string, password: string): Promise<void> {
 	if (!res.ok) throw new Error("Benutzername oder Passwort falsch");       // Fehlerbehandlung bei ungültigen Anmeldedaten, !res prüft, ob die Antwort keinen erfolgreichen Statuscode hat
 	const data = await res.json();                                           // Antwort als JSON parsen, erwartet wird ein Objekt mit einem access_token-Feld
 	saveToken(data.access_token);                                            // Funktion saveToken aufrufen, die Token im localStorage speichert, damit er für zukünftige Anfragen verwendet werden kann
+	loggedInStore.set(true);
 }
 
 /**
@@ -111,4 +116,5 @@ export async function register(username: string, email: string, password: string
 	if (!res.ok) throw new Error("Benutzername oder E-Mail bereits vergeben");        // Fehlerbehandlung, wenn die Registrierung nicht erfolgreich war, z.B. weil der Benutzername oder die E-Mail bereits existiert, !res prüft, ob die Antwort keinen erfolgreichen Statuscode hat
 	const data = await res.json();          // Antwort als JSON parsen, erwartet wird ein Objekt mit einem access_token-Feld, das den JWT enthält, damit der Nutzer nach der Registrierung automatisch eingeloggt wird
 	saveToken(data.access_token);           // Funktion saveToken aufrufen, um Token im localStorage zu speichern
+	loggedInStore.set(true);              // loggedInStore auf true setzen, damit die UI weiß, dass der Nutzer jetzt eingeloggt ist
 }
