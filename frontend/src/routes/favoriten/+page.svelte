@@ -58,7 +58,7 @@
 
 <main class="container">
     <h1>Meine Favoriten</h1>
-    <p class="subtitle">Hier findest du alle von dir als Favoriten markierten Rezepte.</p>
+    <p class="subtitle">Hier findest du alle von dir als Favorit markierten Rezepte.</p>
 
     {#if loading}
         <p class="info">Favoriten werden geladen...</p>
