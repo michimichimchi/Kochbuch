@@ -71,19 +71,19 @@ def seed_database():
     recipes = [
         Recipe(title="Tomatensuppe", category_id=starter, time=10, difficulty=1,
                image="https://images.unsplash.com/photo-1547592166-23ac45744acd?q=80&w=1471&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-               paragraph="Klassische Tomatensuppe mit frischen Kräutern."),
+               paragraph="Tomaten kochen; Tomaten, Knoblauch und angebratene Zwiebeln pürieren; Olivenöl hinzufügen; würzen."),
         Recipe(title="Gurkensalat", category_id=starter, time=20, difficulty=2,
                image = "https://plus.unsplash.com/premium_photo-1701870910794-f2ed7f50a088?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-               paragraph="Frischer Gurkensalat."),
+               paragraph="Gurken schneiden; Essig, Olivenöl und kleine Menge Wasser hinzufügen; würzen."),
         Recipe(title="Spaghetti Bolognese", category_id=main_dish, time=45, difficulty=2,
                image = "https://images.unsplash.com/photo-1622973536968-3ead9e780960?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-               paragraph="Italienische Pasta mit Hackfleisch-Tomatensoße."),
+               paragraph="Nudeln kochen; Hackfleisch anbraten; Tomaten kochen; Hackfleisch und Sauce vermengen."),
         Recipe(title="Pizza Salami", category_id=main_dish, time=30, difficulty=1,
                image = "https://images.unsplash.com/photo-1564128442383-9201fcc740eb?q=80&w=1531&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-               paragraph="Leckere Pizza mit Salami und Mozzarella."),
+               paragraph="Teig ausrollen; Tomatensoße darauf verteilen; mit Mozarelle und Salami belegen; backen."),
         Recipe(title="Erdbeerquark", category_id=dessert, time=60, difficulty=3,
                image = "https://images.unsplash.com/photo-1729542920554-411daacea77b?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-               paragraph="Cremiger Erdbeerquark mit frischen Erdbeeren."),
+               paragraph="Eine Hälfte der Erdbeeren schneiden; andere Hälfte pürieren; Quark hinzufügen; verrühren; Zucker hinzufügen."),
     ]
     # add_all() Rezepte werden im Arbeitsspeicher vorgemerkt
     # commit() speichert sie dann tatsächlich in der DB (INSERT-Befehl wird ausgeführt)
@@ -452,6 +452,7 @@ def update_recipe(
     recipe.difficulty = recipe_data.difficulty
     recipe.paragraph = recipe_data.paragraph
     recipe.image = recipe_data.image
+    recipe.is_public = recipe_data.is_public
 
     try:
         db.commit()
