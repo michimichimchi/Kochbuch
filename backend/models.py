@@ -52,7 +52,6 @@ class Grocery(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String(100), unique=True)
-    image = Column(String(200))
 
 class Evaluation(Base):
     __tablename__ = "evaluation"

@@ -1,21 +1,13 @@
 from typing import Annotated, List
-
 import time
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import func, text, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, OperationalError
 from models import User, Recipe, Category, Grocery, RecipeGrocery
-from sqlalchemy import func, text
-
-from auth import (
-    DUMMY_HASH,
-    create_access_token,
-    get_current_user,
-    get_password_hash,
-    verify_password,
-)
+from auth import DUMMY_HASH, create_access_token, get_current_user, get_password_hash, verify_password
 from database import Base, engine, get_db
 import models
 import schemas
@@ -43,6 +35,10 @@ def wait_for_db(retries=10, delay=3):
 wait_for_db()
 # Tabellen anlegen (falls noch nicht vorhanden)
 Base.metadata.create_all(bind=engine)
+
+# ---------------------------------------------------------------------------
+# Startwerte für DB
+# ---------------------------------------------------------------------------
 
 # Funktion, um Beispielrezepte anzulegen. Wird beim Start der Anwendung aufgerufen.
 def seed_database():
@@ -192,13 +188,10 @@ def health():
 # Authentifizierung
 # ---------------------------------------------------------------------------
 
+#User registrieren
 @app.post("/auth/register", response_model=UserResponse, status_code=201)
 def register(data: UserRegister, db: Session = Depends(get_db)):
     """Neuen Benutzer anlegen. Passwort wird als Argon2-Hash gespeichert."""
-    # TODO: Implementiert diese Funktion
-    # 1. Prüft, ob username oder email bereits existieren (→ 400)
-    # 2. Passwort hashen mit get_password_hash()
-    # 3. User-Objekt anlegen, in DB speichern, zurückgeben
     if db.query(User).filter(User.username == data.username).first() is not None: # Prüft, ob der zu erstellende Benutzername schon in der DB existiert
         raise HTTPException(status_code=400, detail="Username bereits vergeben")  # Wenn ja, code 400 asugeben und Fehlermeldung "Username bereits vergeben"
     if db.query(User).filter(User.email == data.email).first() is not None:       # gleiches Spiel für email
@@ -210,7 +203,7 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
     db.refresh(user)   # Aktualisiert das user-Objekt mit den Daten aus der DB (z.B. automatisch generierte ID)
     return user        # User-Objekt zurückgeben (wird automatisch in UserResponse umgewandelt)
 
-
+#User login
 @app.post("/token", response_model=Token)
 def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
@@ -220,11 +213,6 @@ def login(
     OAuth2 Password Flow: Empfängt username + password als Formular-Daten.
     Gibt einen JWT zurück.
     """
-    # TODO: Implementiert diese Funktion
-    # 1. Benutzer anhand von form_data.username in der DB suchen
-    # 2. Passwort mit verify_password() prüfen (Timing-Schutz: DUMMY_HASH nutzen)
-    # 3. Bei Fehler: 401 zurückgeben (generische Meldung!)
-    # 4. JWT mit create_access_token() erzeugen und zurückgeben
     user = db.query(User).filter(User.username == form_data.username).first()
     if user is None:
         verify_password(form_data.password, DUMMY_HASH) # Timing-Angriff-Schutz: Auch bei unbekanntem Benutzer wird ein Hash-Vergleich durchgeführt. Dann weiß Angreifer nicht,  ob Benutzer existiert oder nicht (sonst wäre die Reaktionszeit bei unbekanntem Benutzer deutlich kürzer, da kein Hash-Vergleich stattfindet)
@@ -236,21 +224,24 @@ def login(
     access_token = create_access_token(user.username)
     return {"access_token": access_token, "token_type": "bearer"}
 
-
+#Profil anzeigen
 @app.get("/my-profile", response_model=UserResponse)
 def get_profile(
     current_username: Annotated[str, Depends(get_current_user)],
     db: Session = Depends(get_db),
 ):
     """Gibt das Profil des eingeloggten Benutzers zurück (geschützter Endpoint)."""
-    # TODO: Implementiert diese Funktion
     # Hinweis: current_username kommt bereits validiert aus dem JWT (via Depends)
     user = db.query(User).filter(User.username == current_username).first()
     if user is None:
         raise HTTPException (status_code=404, detail="Benutzer nicht gefunden") # Sollte eigentlich nie passieren, da current_username nur gültige Benutzernamen enthält. Trotzdem gut, das abzufangen.
     return user
 
+#---------------------------------------------------------
+# Rezepte
+#---------------------------------------------------------
 
+#drei Rezepte mit der besten Bewertung anzeigen
 @app.get("/recipes/top", response_model=List[schemas.RecipeResponse])
 def get_top_recipes(limit: int = 3, db: Session = Depends(get_db)):
     """Holt die Rezepte mit der höchsten Durchschnittsbewertung."""
@@ -269,13 +260,7 @@ def get_top_recipes(limit: int = 3, db: Session = Depends(get_db)):
     
     return top_recipes
 
-
-# ---------------------------------------------------------------------------
-# TODO: Eure eigenen Endpoints hier einfügen
-# ---------------------------------------------------------------------------
-
-from sqlalchemy import or_
-
+#alle Rezepte übersicht
 @app.get("/recipes", response_model=List[schemas.RecipeResponse])
 def get_recipes(search: str = None, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     query = db.query(models.Recipe).filter(models.Recipe.is_public == True)  # Nur öffentliche Rezepte anzeigen
@@ -284,6 +269,7 @@ def get_recipes(search: str = None, skip: int = 0, limit: int = 100, db: Session
         query = query.filter(models.Recipe.title.ilike(f"%{search}%"))
     return query.offset(skip).limit(limit).all()
 
+#eigene Rezepte anzeigen
 @app.get("/recipes/me", response_model=List[schemas.RecipeResponse])
 def get_my_recipes(current_username: str = Depends(get_current_user), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == current_username).first()
@@ -296,6 +282,7 @@ def get_my_recipes(current_username: str = Depends(get_current_user), db: Sessio
         models.RecipeUser.usage == "creator"
     ).all()
 
+#Rezept anzeigen
 @app.get("/recipes/{recipe_id}")
 def get_recipe(recipe_id: int, db: Session = Depends(get_db)):
     recipe = db.query(models.Recipe).filter(models.Recipe.id == recipe_id).first()
@@ -326,6 +313,7 @@ def get_recipe(recipe_id: int, db: Session = Depends(get_db)):
         "is_public": recipe.is_public
     }
 
+#Rezept erstellen
 @app.post("/recipes", response_model=schemas.RecipeResponse)
 def create_recipe(
     recipe: schemas.RecipeCreate,
@@ -381,6 +369,7 @@ def create_recipe(
 
     return new_recipe
 
+#eigene Rezepte löschen
 @app.delete("/recipes/{recipe_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_recipe(
     recipe_id: int,
@@ -425,6 +414,7 @@ def delete_recipe(
 
     return None
 
+#eigene Rezepte abändern
 @app.put("/recipes/{recipe_id}", response_model=schemas.RecipeResponse)
 def update_recipe(
     recipe_id: int,
@@ -496,6 +486,11 @@ def update_recipe(
 
     return recipe
 
+#---------------------------------------------------------
+# Bewertungen
+#---------------------------------------------------------
+
+#Bewertung zu Rezept anzeigen
 @app.get("/recipes/{recipe_id}/evaluations")
 def get_evaluations(
     recipe_id: int,
@@ -517,7 +512,7 @@ def get_evaluations(
         }
         for evaluation, user in evaluations
     ]
-
+#Bewertung erstellen
 @app.post("/evaluations", response_model=schemas.EvaluationResponse)
 def create_evaluation(
     evaluation: schemas.EvaluationCreate,
@@ -540,13 +535,9 @@ def create_evaluation(
 
     return new_evaluation
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"], 
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+#---------------------------------------------------------
+# Favoriten
+#---------------------------------------------------------
 
 # Favoriten-Endpunkte, damit alle Favoriten in der Listen angezeigt werden
 @app.get("/favorites")
@@ -609,16 +600,3 @@ def remove_favorite(recipe_id: int, db: Session = Depends(get_db), current_usern
         raise HTTPException(status_code=404, detail="Favorit nicht gefunden")
     db.delete(fav)
     db.commit()
-
-# Beispiel:
-# @app.get("/items")
-# def get_items(db: Session = Depends(get_db)):
-#     return db.query(Item).all()
-#
-# @app.post("/items", status_code=201)
-# def create_item(data: ItemCreate, db: Session = Depends(get_db)):
-#     item = Item(**data.model_dump())
-#     db.add(item)
-#     db.commit()
-#     db.refresh(item)
-#     return item
