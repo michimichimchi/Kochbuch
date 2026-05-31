@@ -1,12 +1,24 @@
-# Projekt-Template – SvelteKit + FastAPI + MySQL
+# Kurzbeschreibung
+Das Kochbuch ist eine webbasierte Rezeptverwaltung, die das Erstellen, Organisieren und Verwalten von Kochrezepten ermöglicht. Benutzer können eigene Rezepte anlegen, bearbeiten und bewerten sowie ihre Lieblingsrezepte als Favoriten speichern.
 
-Startpunkt für euer Semester-4-Projekt. Enthält eine lauffähige Boilerplate mit:
+Die Anwendung besteht aus einem SvelteKit-Frontend, einem FastAPI-Backend und einer MySQL-Datenbank. Die Kommunikation erfolgt über eine REST-API. Für die Verwaltung der Datenbank steht zusätzlich Adminer zur Verfügung.
 
-- **Backend**: FastAPI + SQLAlchemy + MySQL + JWT-Authentifizierung (Argon2)
-- **Frontend**: SvelteKit mit API-Hilfsfunktionen
-- **Infrastruktur**: Docker Compose für alle Services
+Funktionen
+- Benutzerregistrierung und Login
+- Erstellen, Bearbeiten und Löschen von Rezepten
+- Verwaltung von Zutaten und Kategorien
+- Bewertung von Rezepten durch Benutzer
+- Speichern von Rezepten als Favoriten
+- Übersicht über eigene Rezepte
+- Responsive Weboberfläche
+- Technologien
+- Frontend: SvelteKit
+- Backend: FastAPI (Python)
+- Datenbank: MySQL 8.4
+- Containerisierung: Docker & Docker Compose
+- Datenbankverwaltung: Adminer
 
-## Quickstart
+## Setup Anleitung
 
 ```bash
 # 1. .env aus Vorlage erstellen und Werte anpassen
@@ -25,7 +37,7 @@ docker compose up -d --build
 #    API-Docs:  http://localhost:8000/docs
 ```
 
-## Projektstruktur
+## Dateistruktur
 
 ```
 projekt-template/
@@ -33,31 +45,80 @@ projekt-template/
 │   ├── main.py          # FastAPI-App (Endpoints)
 │   ├── auth.py          # JWT + Argon2 Passwort-Hashing
 │   ├── database.py      # SQLAlchemy Engine + Session
-│   ├── models.py        # ORM-Modelle (User + eure Tabellen)
+│   ├── models.py        # ORM-Modelle (User + Tabellen)
 │   ├── schemas.py       # Pydantic-Schemas (Request/Response)
 │   ├── requirements.txt # Python-Abhängigkeiten
 │   └── Dockerfile       # Bauanleitung für Backend-Container
 ├── frontend/
 │   ├── src/
-│   │   ├── lib/api.ts          # API-Hilfsfunktionen (login, fetch...)
-│   │   └── routes/+page.svelte # Startseite
-│   ├── package.json            # NodeJS-Abhängigkeiten
-│   └── Dockerfile              # Bauanleitung für Frontend-Container
-├── docker-compose.yml          # Orchestrierung aller Container
-├── .env.example                # Vorlage für Umgebungsvariablen
-└── .gitignore                  # Git-Ignore-Datei
+│   │   ├── lib/api.ts                          # API-Hilfsfunktionen (login, fetch...)
+│   │   └── routes/
+│   │   |   ├── +page.svelte                    # Startseite
+│   │   |   ├── +layout.svelte                  # Sidebar
+│   │   |   ├── favoriten/+page.svelte          # Favoriten
+│   │   |   ├── login/+page.svelte              # Login Maske
+│   │   |   ├── meine-rezepte/+page.svelte      # Eigene Rezepte
+│   │   |   ├── profil/+page.svelte             # Profil angemeldeter User
+│   │   |   ├── rezepte-neu/+page.svelte        # Rezepte hinzufügen
+│   │   |   └── rezepte/+page.svelte            # Alle Rezepte
+│   │   |   |   └── [id]/+page.svelte           # Rezept anzeigen
+│   │   |   |   |   └── bearbeiten/+page.svelte # Rezepte bearbeiten
+│   ├── package.json                            # NodeJS-Abhängigkeiten
+│   └── Dockerfile                              # Bauanleitung für Frontend-Container
+├── docker-compose.yml                          # Orchestrierung aller Container
+├── .env.example                                # Vorlage für Umgebungsvariablen
+└── .gitignore                                  # Git-Ignore-Datei
 ```
 
-## Wo anfangen?
+# Mermaid 
+```mermaid
+flowchart LR
 
-1. **Backend erweitern**: Eigene Modelle in `backend/models.py` anlegen, Pydantic-Schemas für API in `backend/schemas.py` anpassen, Endpoints in `backend/main.py` anlegen. Testen mit Swagger UI (`http://localhost:8000/docs`)
-2. **Frontend erweitern**: API-Aufrufe (Kommunikation Svelte <-> Backend) in `frontend/src/lib/api.ts`, UI in `frontend/src/routes/`
-3. **Datenbank**: Tabellen werden beim Start automatisch angelegt (`Base.metadata.create_all`)
+    User["👤 Benutzer"]
 
-## Authentifizierung testen
+    subgraph Docker["Docker Network"]
 
-Die Swagger UI unter `http://localhost:8000/docs` hat einen eingebauten **Authorize**-Button:
+        subgraph Frontend["Frontend (SvelteKit)"]
+            FE["Web Application<br/>Port 5173"]
 
-1. Benutzer anlegen: `POST /auth/register`
-2. Einloggen: Authorize-Button klicken → username + password eingeben
-3. Geschützte Endpoints wie `GET /my-profile` aufrufen
+            Pages["Pages
+            • Login
+            • Profil
+            • Rezepte
+            • Rezept erstellen
+            • Favoriten
+            • Meine Rezepte"]
+        end
+
+        subgraph Backend["Backend (FastAPI)"]
+            API["REST API<br/>Port 8000"]
+
+            Auth["Authentication"]
+            RecipeLogic["Recipe Management"]
+            Validation["Schemas & Validation"]
+        end
+
+        subgraph Database["MySQL Database"]
+            DB["Cookbook DB"]
+
+            Entities["Entities
+            • user
+            • recipe
+            • category
+            • grocery
+            • recipe_grocery
+            • evaluation
+            • recipe_user"]
+        end
+
+        subgraph Admin["Administration"]
+            Adminer["Adminer<br/>Port 8080"]
+        end
+    end
+
+    User -->|Browser| FE
+    FE -->|HTTP / JSON| API
+    API -->|SQL Queries| DB
+    Adminer -->|Database Access| DB
+
+```
