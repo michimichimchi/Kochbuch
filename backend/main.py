@@ -305,6 +305,7 @@ def get_recipe(recipe_id: int, db: Session = Depends(get_db)):
                 "amount": g.amount,
                 "unit": g.unit
             })
+    avg = db.query(func.avg(models.Evaluation.rating)).filter(models.Evaluation.recipe_id == recipe_id).scalar()
 
     return {
         "id": recipe.id,
@@ -315,7 +316,8 @@ def get_recipe(recipe_id: int, db: Session = Depends(get_db)):
         "paragraph": recipe.paragraph,
         "image": recipe.image,
         "ingredients": ingredients_list,
-        "is_public": recipe.is_public
+        "is_public": recipe.is_public,
+        "avg_rating": round(avg, 1) if avg else None
     }
 
 #Rezept erstellen

@@ -18,6 +18,7 @@
         image?: string | null;
         difficulty?: number | null;
         ingredients: Ingredient[];
+        avg_rating?: number | null;
     };
 
     type Evaluation = {
@@ -174,6 +175,12 @@
 
                     {#if recipe.difficulty}
                         <span>💪 Schwierigkeit {recipe.difficulty}/5</span>
+                    {/if}
+
+                    {#if recipe.avg_rating}
+                        <span>Bewertung: {recipe.avg_rating} ⭐</span>
+                    {:else}
+                        <span class="no-rating">(noch keine Bewertungen)</span>
                     {/if}
                 </div>
 
@@ -425,4 +432,11 @@
     .fav-btn.active:hover {
         background: #b8dfc4;
     }
+
+    .no-rating {
+        font-size: 0.85rem;
+        color: #b0a090;
+        font-weight: 400;
+    }
+
 </style>
