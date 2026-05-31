@@ -189,7 +189,7 @@
                         {#each recipe.ingredients as ingredient}
                             <li>
                                 <span class="amount">
-                                    {#if ingredient.amount}{ingredient.amount}{/if}
+                                    {#if ingredient.amount}- {ingredient.amount}{/if}
                                     {#if ingredient.unit} {ingredient.unit}{/if}
                                 </span>
                                 <span class="name">{ingredient.name}</span>
@@ -388,7 +388,7 @@
         margin: 0.2rem 0;
         display: grid;
         grid-template-columns: max-content auto;
-        gap: 0.2rem 1rem;
+        gap: 0.4rem 1rem;
     }
 
     li {
@@ -439,4 +439,11 @@
         font-weight: 400;
     }
 
+    .amount {
+        font-weight: 510;
+        color: #845b2f;
+    }
+    .name {
+        color: #845b2f;
+    }
 </style>
