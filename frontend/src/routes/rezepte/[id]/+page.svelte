@@ -18,6 +18,7 @@
         image?: string | null;
         difficulty?: number | null;
         ingredients: Ingredient[];
+        avg_rating?: number | null;
     };
 
     type Evaluation = {
@@ -47,6 +48,15 @@
 
         if (evalRes.ok) {
             evaluations = await evalRes.json();
+            // Durchschnitt neu berechnen
+            if (recipe) {
+                if (evaluations.length > 0) {
+                    const sum = evaluations.reduce((acc, e) => acc + (e.rating ?? 0), 0);
+                    recipe.avg_rating = Math.round((sum / evaluations.length) * 10) / 10; // auf 1 Nachkommastelle runden
+                } else {
+                    recipe.avg_rating = null;
+                }
+            }
         }
     }
 
@@ -175,6 +185,12 @@
                     {#if recipe.difficulty}
                         <span>💪 Schwierigkeit {recipe.difficulty}/5</span>
                     {/if}
+
+                    {#if recipe.avg_rating}
+                        <span>Bewertung: {recipe.avg_rating} ⭐</span>
+                    {:else}
+                        <span class="no-rating">(noch keine Bewertungen)</span>
+                    {/if}
                 </div>
 
                 {#if recipe.ingredients?.length}
@@ -182,7 +198,7 @@
                         {#each recipe.ingredients as ingredient}
                             <li>
                                 <span class="amount">
-                                    {#if ingredient.amount}{ingredient.amount}{/if}
+                                    {#if ingredient.amount}- {ingredient.amount}{/if}
                                     {#if ingredient.unit} {ingredient.unit}{/if}
                                 </span>
                                 <span class="name">{ingredient.name}</span>
@@ -381,7 +397,7 @@
         margin: 0.2rem 0;
         display: grid;
         grid-template-columns: max-content auto;
-        gap: 0.2rem 1rem;
+        gap: 0.4rem 1rem;
     }
 
     li {
@@ -424,5 +440,19 @@
 
     .fav-btn.active:hover {
         background: #b8dfc4;
+    }
+
+    .no-rating {
+        font-size: 0.85rem;
+        color: #b0a090;
+        font-weight: 400;
+    }
+
+    .amount {
+        font-weight: 510;
+        color: #845b2f;
+    }
+    .name {
+        color: #845b2f;
     }
 </style>
