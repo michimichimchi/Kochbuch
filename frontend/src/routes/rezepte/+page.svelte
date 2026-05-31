@@ -1,5 +1,4 @@
 <script lang="ts">
-    // 'page' importieren, um die URL auslesen zu können
     import { page } from '$app/stores';
 
     type Recipe = {
@@ -12,27 +11,30 @@
         difficulty?: number | null;
     };
 
-    // Suchbegriff aus der URL (?q=Pizza) abfangen
+    // 1. NEU: Wir fangen jetzt BEIDES aus der URL ab (Suche und Kategorie)
     let searchQuery = $derived($page.url.searchParams.get('q') || "");
+    let categoryQuery = $derived($page.url.searchParams.get('category') || "");
 
     let recipes = $state<Recipe[]>([]);
     let loading = $state(true);
     let errorMsg = $state("");
 
-    // $effect reagiert automatisch auf Änderungen des Suchbegriffs
+    // 2. NEU: $effect gibt jetzt Suche UND Kategorie an die Lade-Funktion weiter
     $effect(() => {
-        ladeRezepte(searchQuery);
+        ladeRezepte(searchQuery, categoryQuery);
     });
 
-    async function ladeRezepte(query: string) {
+    async function ladeRezepte(query: string, category: string) {
         loading = true;
         errorMsg = "";
         try {
-            // Den Filter-Zusatz für das Backend zusammenbauen
-            const q = query ? `?search=${encodeURIComponent(query)}` : "";
+            // 3. NEU: URLSearchParams baut das ?search=...&category=... fehlerfrei zusammen
+            const params = new URLSearchParams();
+            if (query) params.append("search", query);
+            if (category) params.append("category", category); 
             
-            // Anfrage an das Backend schicken (mit oder ohne Suchbegriff)
-            const response = await fetch(`http://localhost:8000/recipes${q}`);
+            // Anfrage an das Backend schicken (jetzt mit den flexiblen Parametern!)
+            const response = await fetch(`http://localhost:8000/recipes?${params.toString()}`);
 
             if (!response.ok) {
                 throw new Error("Rezepte konnten nicht geladen werden");

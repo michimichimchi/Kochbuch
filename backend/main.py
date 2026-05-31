@@ -262,11 +262,16 @@ def get_top_recipes(limit: int = 3, db: Session = Depends(get_db)):
 
 #alle Rezepte übersicht
 @app.get("/recipes", response_model=List[schemas.RecipeResponse])
-def get_recipes(search: str = None, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    query = db.query(models.Recipe).filter(models.Recipe.is_public == True)  # Nur öffentliche Rezepte anzeigen
+def get_recipes(search: str = None, category: str = None, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    query = db.query(models.Recipe).filter(models.Recipe.is_public == True) 
+    
     if search:
-        # Suche im Titel (case-insensitive)
         query = query.filter(models.Recipe.title.ilike(f"%{search}%"))
+        
+    if category:
+        query = query.join(models.Category, models.Recipe.category_id == models.Category.id)\
+                   .filter(models.Category.name == category)
+                   
     return query.offset(skip).limit(limit).all()
 
 #eigene Rezepte anzeigen

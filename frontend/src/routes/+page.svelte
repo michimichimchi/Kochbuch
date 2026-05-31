@@ -61,13 +61,13 @@
 	
 	<!-- Kategorien -->
 	<section class="categories">
-		<h2>Kategorien</h2>
-		<div class="category-list">
-			<div class="category-card">Vorspeisen</div>
-			<div class="category-card">Hauptgerichte</div>
-			<div class="category-card">Desserts</div>
-		</div>
-	</section>
+        <h2>Kategorien</h2>
+        <div class="category-list">
+            <a href="/rezepte?category=Hauptgericht" class="category-card">Hauptgerichte</a>
+            <a href="/rezepte?category=Vorspeise" class="category-card">Vorspeisen</a>
+            <a href="/rezepte?category=Dessert" class="category-card">Desserts</a>
+        </div>
+    </section>
 
 	<!-- Beliebte Rezepte -->
 	<section class="popular">
@@ -191,6 +191,7 @@
 		font-weight: 500;
 		cursor: pointer;
 		transition: box-shadow 0.2s, background 0.2s;
+		text-decoration: none;
 	}
 	.category-card:hover {
 		background: #f3e7d7;
