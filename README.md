@@ -6,12 +6,11 @@ Die Anwendung besteht aus einem SvelteKit-Frontend, einem FastAPI-Backend und ei
 Funktionen
 - Benutzerregistrierung und Login
 - Erstellen, Bearbeiten und Löschen von Rezepten
-- Verwaltung von Zutaten und Kategorien
 - Bewertung von Rezepten durch Benutzer
 - Speichern von Rezepten als Favoriten
 - Übersicht über eigene Rezepte
-- Responsive Weboberfläche
-- Technologien
+
+Technologien
 - Frontend: SvelteKit
 - Backend: FastAPI (Python)
 - Datenbank: MySQL 8.4
@@ -70,7 +69,7 @@ projekt-template/
 └── .gitignore                                  # Git-Ignore-Datei
 ```
 
-# Mermaid 
+# Architekturdiagramm 
 ```mermaid
 flowchart LR
 
