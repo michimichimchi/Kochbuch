@@ -48,6 +48,15 @@
 
         if (evalRes.ok) {
             evaluations = await evalRes.json();
+            // Durchschnitt neu berechnen
+            if (recipe) {
+                if (evaluations.length > 0) {
+                    const sum = evaluations.reduce((acc, e) => acc + (e.rating ?? 0), 0);
+                    recipe.avg_rating = Math.round((sum / evaluations.length) * 10) / 10; // auf 1 Nachkommastelle runden
+                } else {
+                    recipe.avg_rating = null;
+                }
+            }
         }
     }
 
